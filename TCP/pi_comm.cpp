@@ -15,6 +15,45 @@
 #include <string>
 #include <thread>
 
+// --- NEW: UART includes
+#include <fcntl.h>
+#include <termios.h>
+
+// --- NEW: tiny UART helper
+static int open_uart(const char* dev, int baud){
+    int fd = ::open(dev, O_RDWR | O_NOCTTY | O_NONBLOCK);
+    if(fd < 0){ perror("open_uart"); return -1; }
+
+    termios tio{};
+    if(tcgetattr(fd, &tio) < 0){ perror("tcgetattr"); ::close(fd); return -1; }
+
+    cfmakeraw(&tio);
+    tio.c_cflag |= (CLOCAL | CREAD);
+    // 8N1
+    tio.c_cflag &= ~PARENB;
+    tio.c_cflag &= ~CSTOPB;
+    tio.c_cflag &= ~CSIZE;
+    tio.c_cflag |= CS8;
+    // Baud
+    speed_t spd = B115200;
+    switch(baud){
+        case 9600: spd=B9600; break;
+        case 19200: spd=B19200; break;
+        case 38400: spd=B38400; break;
+        case 57600: spd=B57600; break;
+        case 115200: default: spd=B115200; break;
+    }
+    cfsetispeed(&tio, spd);
+    cfsetospeed(&tio, spd);
+
+    // Apply and make blocking reads/writes (clear O_NONBLOCK after config)
+    if(tcsetattr(fd, TCSANOW, &tio) < 0){ perror("tcsetattr"); ::close(fd); return -1; }
+    int flags = fcntl(fd, F_GETFL);
+    fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+    tcflush(fd, TCIOFLUSH);
+    return fd;
+}
+
 static void set_nodelay(int fd){
     int one=1; setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
 }
@@ -22,7 +61,18 @@ static void set_nodelay(int fd){
 int main(int argc, char**argv){
     const char* host = (argc>1)? argv[1] : "0.0.0.0";
     int port = (argc>2)? std::stoi(argv[2]) : 5000;
+    
+    const char* uart_dev = (argc>3)? argv[3] : "/dev/ttyUSB0";
+    int uart_baud = (argc>4)? std::stoi(argv[4]) : 115200;
 
+    // --- NEW: open UART once at startup
+    int uart_fd = open_uart(uart_dev, uart_baud);
+    if(uart_fd < 0){
+        std::cerr << "VARNING: Kunde inte öppna UART ("<<uart_dev<<"). Fortsätter utan.\n";
+    } else {
+        std::cout << "UART öppen på " << uart_dev << " @ " << uart_baud << " baud\n";
+    }
+    
     int srv = ::socket(AF_INET, SOCK_STREAM, 0);
     if(srv<0){ perror("socket"); return 1; }
     int one=1; setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
@@ -57,6 +107,15 @@ int main(int argc, char**argv){
                     if(line=="quit") { stop=true; break; }
                     // Här: Mappa line t.ex. "forward 120 1", "left 20 1", "stop"
                     std::cout<<"CMD: "<<line<<"\n";
+                    // --- NEW: map "fram" (Up arrow from Win GUI) -> send single byte 0x01 over UART
+                    if(uart_fd >= 0 && line=="fram"){
+                        uint8_t b = 0x01;
+                        ssize_t wr = ::write(uart_fd, &b, 1);
+                        if(wr != 1) { perror("UART write"); }
+                        // (Optional) flush to push it immediately
+                        tcdrain(uart_fd);
+                    }
+
                     // TODO: skriv UART-ram: [0xAA, typ, len, data...]  (enligt spec). :contentReference[oaicite:3]{index=3}
                 }
             }
@@ -85,5 +144,7 @@ int main(int argc, char**argv){
         close(fd);
         std::cout<<"Klient frånkopplad\n";
     }
+    // --- NEW: close UART on exit
+    if(uart_fd >= 0) ::close(uart_fd);
     return 0;
 }
