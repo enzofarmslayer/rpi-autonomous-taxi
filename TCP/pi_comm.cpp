@@ -73,20 +73,22 @@ int main(int argc, char**argv){
         std::cout << "UART öppen på " << uart_dev << " @ " << uart_baud << " baud\n";
     }
     
-    int srv = ::socket(AF_INET, SOCK_STREAM, 0);
+    int srv = ::socket(AF_INET, SOCK_STREAM, 0); //skapa tcp anslutning. sockstream = tcp (sock_dgram = udp)
+                                                //af inet = address family: inteernet dvs ipv4  internet protokollet.
+                                                //vid misslyckande returvärde < 0
     if(srv<0){ perror("socket"); return 1; }
     int one=1; setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
 
-    sockaddr_in addr{}; addr.sin_family=AF_INET; addr.sin_port=htons(port);
+    sockaddr_in addr{}; addr.sin_family=AF_INET; addr.sin_port=htons(port); //ipv4 internet protokoll
     addr.sin_addr.s_addr = inet_addr(host);
-    if(bind(srv, (sockaddr*)&addr, sizeof(addr))<0){ perror("bind"); return 1; }
+    if(bind(srv, (sockaddr*)&addr, sizeof(addr))<0){ perror("bind"); return 1; } //Kopplar socket till lokal ip
     if(listen(srv, 1)<0){ perror("listen"); return 1; }
     std::cout<<"Lyssnar på "<<host<<":"<<port<<"\n";
 
-    for(;;){
+    for(;;){ //oändlig loop
         sockaddr_in cli{}; socklen_t cl=sizeof(cli);
         int fd = accept(srv,(sockaddr*)&cli,&cl);
-        if(fd<0){ perror("accept"); continue; }
+        if(fd<0){ perror("accept"); continue; }  //misslyckas accept hopppa över och fortsätt.
         set_nodelay(fd);
         std::cout<<"Klient ansluten\n";
 
