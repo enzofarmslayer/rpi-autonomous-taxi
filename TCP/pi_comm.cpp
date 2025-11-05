@@ -111,7 +111,11 @@ int main(int argc, char**argv){
                     if(uart_fd >= 0 && line=="fram"){
                         uint8_t b = 0x01;
                         ssize_t wr = ::write(uart_fd, &b, 1);
-                        if(wr != 1) { perror("UART write"); }
+                        if(wr == 1) {
+                            std::cout << "Sent 1 byte (0x01) to UART\n";
+                        } else {
+                             perror("UART write");
+                        }
                         // (Optional) flush to push it immediately
                         tcdrain(uart_fd);
                     }
