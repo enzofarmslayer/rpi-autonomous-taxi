@@ -108,17 +108,40 @@ int main(int argc, char**argv){
                     // Här: Mappa line t.ex. "forward 120 1", "left 20 1", "stop"
                     std::cout<<"CMD: "<<line<<"\n";
                     // --- NEW: map "fram" (Up arrow from Win GUI) -> send single byte 0x01 over UART
-                    if(uart_fd >= 0 && line=="fram"){
-                        uint8_t b = 0x01;
-                        ssize_t wr = ::write(uart_fd, &b, 1);
-                        if(wr == 1) {
-                            std::cout << "Sent 1 byte (0x01) to UART\n";
-                        } else {
-                             perror("UART write");
+                    if(uart_fd >= 0){
+                        //uint8_t b = 0;
+                        if(line=="fram"){
+                            uint8_t b = 0x80;                           
+                            ssize_t wr = ::write(uart_fd, &b, 1);
                         }
+                        else if(line=="stop"){
+                            uint8_t b = 0x40;
+                            ssize_t wr = ::write(uart_fd, &b, 1);
+                        }
+                        else if(line=="vänster"){
+                            uint8_t b = 0x20;
+                            ssize_t wr = ::write(uart_fd, &b, 1);
+                        }
+                        else if(line=="höger"){
+                            uint8_t b = 0x10;
+                            ssize_t wr = ::write(uart_fd, &b, 1);
+                        }
+                        else if(line=="bakåt"){
+                            uint8_t b = 0x08;
+                            ssize_t wr = ::write(uart_fd, &b, 1);
+                        }
+              
+                        
+                        //ssize_t wr = ::write(uart_fd, &b, 1);
+                        //if(wr == 1) {
+                          //  std::cout << "Sent 1 byte (0x01) to UART\n";
+                        //} else {
+                          //   perror("UART write");
+                        //}
                         // (Optional) flush to push it immediately
                         tcdrain(uart_fd);
                     }
+                    
 
                     // TODO: skriv UART-ram: [0xAA, typ, len, data...]  (enligt spec). :contentReference[oaicite:3]{index=3}
                 }
