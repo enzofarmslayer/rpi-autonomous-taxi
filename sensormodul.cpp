@@ -46,6 +46,22 @@ void echo_icp_init(void){
 	TIMSK1 |= (1<<ICIE1);
 }
 
+void uart_init(unsigned long baud) {
+	uint16_t ubrr = (F_CPU / 16 / baud) - 1;
+	
+	UBRR0H = (uint8_t)(ubrr >> 8);
+	UBRR0L = (uint8_t)ubrr;
+	
+	UCSR0B |= (1 << TXEN0);
+	
+	UCSR0C |= (1 << UCSZ01);
+}
+
+void uart_send_chart(char c) {
+	while(!(UCSR0A & (1 << UDRE0)));
+	UDR0 = c;
+}
+
 ISR(TIMER1_CAPT_vect){
 	uint16_t cap = ICR1;
 	if (TCCR1B & (1<<ICES1)) {
@@ -72,6 +88,7 @@ int main(void)
 	PORTD &= ~(1 << PD5_TRIG);
 	PORTD &= ~(1 << PD1);
 	uint8_t obstacle_present = 0;
+	uint8_t has_sent_obstacle = 0;
 	//odometer_int0_init();
     while (1) 
     {
@@ -88,16 +105,17 @@ int main(void)
 			uint16_t length = (end >= start) ? (end - start) : (end + 0x10000 - start);
 			
 			if (length < 2500) {
-				PORTD |= (1 << PD1);
 				obstacle_present = 1;	
 			} else {
-				PORTD &= ~(1<<PD1);
+				obstacle_present = 0;
 			}
-		} else {
-			PORTD &= ~(1 << PD1);
 		}
-		if (obstacle_present) {
-			// TODO #SEND TO ENZO
+		if (obstacle_present && !has_sent_obstacle) {
+			uart_send_chart('1');
+			has_sent_obstacle = 1;
+		} else if(!obstacle_present && has_sent_obstacle) {
+			uart_send_chart('0');
+			has_sent_obstacle = 0;
 		}
 		_delay_ms(10);
     }
