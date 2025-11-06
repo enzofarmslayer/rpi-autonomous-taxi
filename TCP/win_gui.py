@@ -27,26 +27,49 @@ def send(cmd: str): #hjälpfunktion varje gång vi skickar till pi:n.
     except OSError: status.set("Disconnected") #Vid error sätt status till disconnected.
 
 
-#kallar på hjälpfunktionen send . =None innebär att argument kan komma men ignoreras.
-def on_up(_=None):    send("fram") #skickar textsträngen till raspberry omvandlat till bytes mha send.
-def on_down(_=None):  send("bak")  
-def on_left(_=None):  send("vänster")
-def on_right(_=None): send("höger")
-def on_space(_=None): send("stop")
+# #kallar på hjälpfunktionen send . =None innebär att argument kan komma men ignoreras.
+# def on_up(_=None):    send("fram") #skickar textsträngen till raspberry omvandlat till bytes mha send.
+# def on_down(_=None):  send("bak")  
+# def on_left(_=None):  send("vänster")
+# def on_right(_=None): send("höger")
+# def on_space(_=None): send("stop")
 
 #fixar gui knapparna i frame, kopplas till kommandon mha command= . 
-ttk.Button(frm, text="↑ Framåt", width=14, command=on_up).grid(row=0, column=1, padx=5, pady=5)
-ttk.Button(frm, text="← Vänster", width=14, command=on_left).grid(row=1, column=0, padx=5, pady=5)
-ttk.Button(frm, text="Stopp", width=14, command=on_space).grid(row=1, column=1, padx=5, pady=5)
-ttk.Button(frm, text="Höger →", width=14, command=on_right).grid(row=1, column=2, padx=5, pady=5)
-ttk.Button(frm, text="↓ Bakåt", width=14, command=on_down).grid(row=2, column=1, padx=5, pady=5)
+# ttk.Button(frm, text="↑ Framåt", width=14, command=on_up).grid(row=0, column=1, padx=5, pady=5)
+# ttk.Button(frm, text="← Vänster", width=14, command=on_left).grid(row=1, column=0, padx=5, pady=5)
+# ttk.Button(frm, text="Stopp", width=14, command=on_space).grid(row=1, column=1, padx=5, pady=5)
+# ttk.Button(frm, text="Höger →", width=14, command=on_right).grid(row=1, column=2, padx=5, pady=5)
+# ttk.Button(frm, text="↓ Bakåt", width=14, command=on_down).grid(row=2, column=1, padx=5, pady=5)
 
-# Piltangenter & Space
-root.bind("<Up>", on_up)
-root.bind("<Left>", on_left)
-root.bind("<Right>", on_right)
-root.bind("<Down>", on_down)
-root.bind("<space>", on_space)
+pressed_keys = set()  # globalt minne av aktiva tangenter
+
+def on_key_press(event):
+    key = event.keysym  # t.ex. "Up", "Left", "space"
+
+    if key not in pressed_keys:  # första gången knappen trycks
+        pressed_keys.add(key)
+
+        if key == "Up":           send("fram_down")
+        elif key == "Down":       send("bakåt_down")
+        elif key == "Left":       send("vänster_down")
+        elif key == "Right":      send("höger_down")
+        elif key == "space":      send("stop_down")
+
+def on_key_release(event):
+    key = event.keysym
+
+    if key in pressed_keys:
+        pressed_keys.remove(key)
+
+        if key == "Up":           send("fram_up")
+        elif key == "Down":       send("bakåt_up")
+        elif key == "Left":       send("vänster_up")
+        elif key == "Right":      send("höger_up")
+        elif key == "space":      send("stop_up")
+
+# Bind:
+root.bind_all("<KeyPress>", on_key_press)
+root.bind_all("<KeyRelease>", on_key_release)
 
 
 #hämtar data och visar den i gui 

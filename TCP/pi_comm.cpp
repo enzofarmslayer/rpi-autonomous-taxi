@@ -59,6 +59,8 @@ static void set_nodelay(int fd){
 }
 
 int main(int argc, char**argv){
+    std::atomic<uint8_t> current_mask{0};  // bitmasken vi skickar till AVR
+    
     const char* host = (argc>1)? argv[1] : "0.0.0.0";
     int port = (argc>2)? std::stoi(argv[2]) : 5000;
     
@@ -73,22 +75,20 @@ int main(int argc, char**argv){
         std::cout << "UART öppen på " << uart_dev << " @ " << uart_baud << " baud\n";
     }
     
-    int srv = ::socket(AF_INET, SOCK_STREAM, 0); //skapa tcp anslutning. sockstream = tcp (sock_dgram = udp)
-                                                //af inet = address family: inteernet dvs ipv4  internet protokollet.
-                                                //vid misslyckande returvärde < 0
+    int srv = ::socket(AF_INET, SOCK_STREAM, 0);
     if(srv<0){ perror("socket"); return 1; }
     int one=1; setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
 
-    sockaddr_in addr{}; addr.sin_family=AF_INET; addr.sin_port=htons(port); //ipv4 internet protokoll
+    sockaddr_in addr{}; addr.sin_family=AF_INET; addr.sin_port=htons(port);
     addr.sin_addr.s_addr = inet_addr(host);
-    if(bind(srv, (sockaddr*)&addr, sizeof(addr))<0){ perror("bind"); return 1; } //Kopplar socket till lokal ip
+    if(bind(srv, (sockaddr*)&addr, sizeof(addr))<0){ perror("bind"); return 1; }
     if(listen(srv, 1)<0){ perror("listen"); return 1; }
     std::cout<<"Lyssnar på "<<host<<":"<<port<<"\n";
 
-    for(;;){ //oändlig loop
+    for(;;){
         sockaddr_in cli{}; socklen_t cl=sizeof(cli);
         int fd = accept(srv,(sockaddr*)&cli,&cl);
-        if(fd<0){ perror("accept"); continue; }  //misslyckas accept hopppa över och fortsätt.
+        if(fd<0){ perror("accept"); continue; }
         set_nodelay(fd);
         std::cout<<"Klient ansluten\n";
 
@@ -104,48 +104,52 @@ int main(int argc, char**argv){
                 if(r<=0) break;
                 buf.append(tmp, tmp+r);
                 size_t pos;
+                bool dirty = false;            // ändrades masken denna recv-omgång?
                 while((pos = buf.find('\n')) != std::string::npos){
                     std::string line = buf.substr(0,pos); buf.erase(0,pos+1);
                     if(line=="quit") { stop=true; break; }
                     // Här: Mappa line t.ex. "forward 120 1", "left 20 1", "stop"
                     std::cout<<"CMD: "<<line<<"\n";
                     // --- NEW: map "fram" (Up arrow from Win GUI) -> send single byte 0x01 over UART
-                    if(uart_fd >= 0){
-                        //uint8_t b = 0;
-                        if(line=="fram"){
-                            uint8_t b = 0x80;                           
-                            ssize_t wr = ::write(uart_fd, &b, 1);
-                        }
-                        else if(line=="stop"){
-                            uint8_t b = 0x40;
-                            ssize_t wr = ::write(uart_fd, &b, 1);
-                        }
-                        else if(line=="vänster"){
-                            uint8_t b = 0x20;
-                            ssize_t wr = ::write(uart_fd, &b, 1);
-                        }
-                        else if(line=="höger"){
-                            uint8_t b = 0x10;
-                            ssize_t wr = ::write(uart_fd, &b, 1);
-                        }
-                        else if(line=="bakåt"){
-                            uint8_t b = 0x08;
-                            ssize_t wr = ::write(uart_fd, &b, 1);
-                        }
-              
-                        
-                        //ssize_t wr = ::write(uart_fd, &b, 1);
-                        //if(wr == 1) {
-                          //  std::cout << "Sent 1 byte (0x01) to UART\n";
-                        //} else {
-                          //   perror("UART write");
-                        //}
-                        // (Optional) flush to push it immediately
-                        tcdrain(uart_fd);
-                    }
-                    
+                    constexpr uint8_t BIT_FRAM = 0x80;
+                    constexpr uint8_t BIT_STOP = 0x40;
+                    constexpr uint8_t BIT_VANSTER = 0x20;
+                    constexpr uint8_t BIT_HOGER = 0x10;
+                    constexpr uint8_t BIT_BAKAT = 0x08;
 
-                    // TODO: skriv UART-ram: [0xAA, typ, len, data...]  (enligt spec). :contentReference[oaicite:3]{index=3}
+                    auto set_bit   = [&](uint8_t b){ current_mask = current_mask.load() |  b; dirty = true; };
+                    auto clear_bit = [&](uint8_t b){ current_mask = current_mask.load() & ~b; dirty = true; };
+                    uint8_t current_bit = current_mask.load(); 
+                    // --- TOLKNING AV KOMMANDON ---
+                    if(line=="stop_down")         set_bit(BIT_STOP);
+                    else if(line=="stop_up")      clear_bit(BIT_STOP);
+                    
+                    else if(line=="fram_down" && !(current_mask & BIT_BAKAT))     set_bit(BIT_FRAM);
+                    else if(line=="fram_up")      clear_bit(BIT_FRAM);
+
+                    else if(line=="bakåt_down" && !(current_mask & BIT_FRAM))   set_bit(BIT_BAKAT);
+                    else if(line=="bakåt_up")     clear_bit(BIT_BAKAT);
+
+                    if(line=="vänster_down"){   
+                        set_bit(BIT_VANSTER);
+                        clear_bit(BIT_HOGER);
+                    }
+                    else if(line=="vänster_up")   clear_bit(BIT_VANSTER);
+
+                    if(line=="höger_down"){   
+                        set_bit(BIT_HOGER);
+                        clear_bit(BIT_VANSTER);
+                    }
+                    else if(line=="höger_up")     clear_bit(BIT_HOGER);
+
+
+                    if(dirty && uart_fd >= 0){
+                        uint8_t out = current_mask.load();
+                        ssize_t wr = ::write(uart_fd, &out, 1);
+                        if(wr != 1) perror("UART write");
+                        tcdrain(uart_fd);
+                     }
+                
                 }
             }
             stop=true;
