@@ -1,12 +1,11 @@
 // g++ -O2 -std=c++17 -pthread -o pi_comm pi_comm.cpp
-// Kör: ./pi_comm 0.0.0.0 5000
-// Gör två trådar: (1) tar emot kommandorader från PC, (2) skickar telemetri (JSON per rad).
-// TODO senare: mappa kommandon -> skriv [0xAA,TYP,LEN,DATA...] till UART.
+// Kör: ./pi_comm 0.0.0.0 5000 [/dev/serial/by-id/<styr> 115200 /dev/serial/by-id/<sensor> 115200]
 
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
 #include <atomic>
 #include <chrono>
 #include <cstring>
@@ -14,12 +13,13 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <algorithm>  // std::min (not used now, but fine)
+#include <cerrno>     // errno/EINTR
+#include <cstdio>     // std::snprintf
 
-// --- NEW: UART includes
 #include <fcntl.h>
 #include <termios.h>
 
-// --- NEW: tiny UART helper
 static int open_uart(const char* dev, int baud){
     int fd = ::open(dev, O_RDWR | O_NOCTTY | O_NONBLOCK);
     if(fd < 0){ perror("open_uart"); return -1; }
@@ -29,12 +29,11 @@ static int open_uart(const char* dev, int baud){
 
     cfmakeraw(&tio);
     tio.c_cflag |= (CLOCAL | CREAD);
-    // 8N1
     tio.c_cflag &= ~PARENB;
     tio.c_cflag &= ~CSTOPB;
     tio.c_cflag &= ~CSIZE;
     tio.c_cflag |= CS8;
-    // Baud
+
     speed_t spd = B115200;
     switch(baud){
         case 9600: spd=B9600; break;
@@ -46,10 +45,10 @@ static int open_uart(const char* dev, int baud){
     cfsetispeed(&tio, spd);
     cfsetospeed(&tio, spd);
 
-    // Apply and make blocking reads/writes (clear O_NONBLOCK after config)
     if(tcsetattr(fd, TCSANOW, &tio) < 0){ perror("tcsetattr"); ::close(fd); return -1; }
+
     int flags = fcntl(fd, F_GETFL);
-    fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+    fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);  // blocking
     tcflush(fd, TCIOFLUSH);
     return fd;
 }
@@ -58,44 +57,101 @@ static void set_nodelay(int fd){
     int one=1; setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
 }
 
-int main(int argc, char**argv){
-    std::atomic<uint8_t> current_mask{0};  // bitmasken vi skickar till AVR
-    
-    const char* host = (argc>1)? argv[1] : "0.0.0.0";
-    int port = (argc>2)? std::stoi(argv[2]) : 5000;
-    
-    const char* uart_dev = (argc>3)? argv[3] : "/dev/ttyUSB0";
-    int uart_baud = (argc>4)? std::stoi(argv[4]) : 115200;
+// --- Latest-sensor-byte only ---
+std::atomic<uint8_t> g_sensor_byte{0};     // latest byte seen from sensor UART
+std::atomic<bool>    g_sensor_seen{false}; // have we received anything yet?
 
-    // --- NEW: open UART once at startup
-    int uart_fd = open_uart(uart_dev, uart_baud);
-    if(uart_fd < 0){
-        std::cerr << "VARNING: Kunde inte öppna UART ("<<uart_dev<<"). Fortsätter utan.\n";
-    } else {
-        std::cout << "UART öppen på " << uart_dev << " @ " << uart_baud << " baud\n";
-    }
+int main(int argc, char**argv){
+    std::atomic<uint8_t> current_mask{0};  // bitmask to styr AVR
     
+    constexpr uint8_t BIT_FRAM=0x80;
+    constexpr uint8_t BIT_STOP=0x40;
+    constexpr uint8_t BIT_VANSTER=0x20;
+    constexpr uint8_t BIT_HOGER=0x10;
+    constexpr uint8_t BIT_BAKAT=0x08;
+                
+    bool dirty = false;
+    
+    auto set_bit   = [&](uint8_t b){ current_mask = uint8_t(current_mask.load() |  b); dirty = true; };
+    auto clear_bit = [&](uint8_t b){ current_mask = uint8_t(current_mask.load() & ~b); dirty = true; };
+
+    const char* host = (argc>1)? argv[1] : "0.0.0.0";
+    int port         = (argc>2)? std::stoi(argv[2]) : 5000;
+
+    const char* styr_dev    = (argc>3)? argv[3] : "/dev/ttyUSB0";
+    int         styr_baud   = (argc>4)? std::stoi(argv[4]) : 115200;
+
+    const char* sensor_dev  = (argc>5)? argv[5] : "/dev/ttyUSB1";
+    int         sensor_baud = (argc>6)? std::stoi(argv[6]) : 115200;
+
+    int styr_fd   = open_uart(styr_dev,   styr_baud);
+    int sensor_fd = open_uart(sensor_dev, sensor_baud);
+
+    if(styr_fd   < 0) std::cerr << "WARN: couldn't open styr-UART   " << styr_dev   << "\n";
+    else              std::cout << "styr UART   open: " << styr_dev   << " @" << styr_baud   << "\n";
+    if(sensor_fd < 0) std::cerr << "WARN: couldn't open sensor-UART " << sensor_dev << "\n";
+    else              std::cout << "sensor UART open: " << sensor_dev << " @" << sensor_baud << "\n";
+
+    std::atomic<bool> global_stop{false};
+    std::atomic<bool>    g_obstacle{false};     // true when sensor says 0x01
+    std::mutex           uart_mx; 
+
+
+    std::thread t_sensor([&](){
+        uint8_t tmp[128];
+        while(!global_stop){
+            if(sensor_fd < 0){ std::this_thread::sleep_for(std::chrono::milliseconds(200)); continue; }
+
+            ssize_t r = ::read(sensor_fd, tmp, sizeof(tmp));   // blocking
+            if (r > 0){
+                uint8_t last = tmp[r-1];
+
+                std::cout << "[Sensor UART] Received byte: 0x" << std::hex << int(last) << std::dec << "\n";
+
+                // keep latest byte for GUI
+                g_sensor_byte.store(last, std::memory_order_relaxed);
+                g_sensor_seen.store(true,  std::memory_order_relaxed);
+
+                // just set/clear the flag — DO NOT touch current_mask or write UART here
+                if (last == '1') {
+                    g_obstacle.store(true, std::memory_order_relaxed);
+                    set_bit(BIT_HOGER);
+                } else if (last == '0') {
+                    g_obstacle.store(false, std::memory_order_relaxed);
+                    clear_bit(BIT_HOGER);
+                }
+            } else if(r == 0){
+                std::this_thread::sleep_for(std::chrono::milliseconds(50)); // unplug?
+            } else {
+                if(errno==EINTR) continue;
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+        }
+    });
+
+    // ---- TCP server ----
     int srv = ::socket(AF_INET, SOCK_STREAM, 0);
-    if(srv<0){ perror("socket"); return 1; }
+    if(srv<0){ perror("socket"); global_stop=true; t_sensor.join(); return 1; }
     int one=1; setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
 
     sockaddr_in addr{}; addr.sin_family=AF_INET; addr.sin_port=htons(port);
     addr.sin_addr.s_addr = inet_addr(host);
-    if(bind(srv, (sockaddr*)&addr, sizeof(addr))<0){ perror("bind"); return 1; }
-    if(listen(srv, 1)<0){ perror("listen"); return 1; }
+    if(bind(srv, (sockaddr*)&addr, sizeof(addr))<0){ perror("bind"); global_stop=true; t_sensor.join(); return 1; }
+    if(listen(srv, 1)<0){ perror("listen"); global_stop=true; t_sensor.join(); return 1; }
     std::cout<<"Lyssnar på "<<host<<":"<<port<<"\n";
 
     for(;;){
         sockaddr_in cli{}; socklen_t cl=sizeof(cli);
         int fd = accept(srv,(sockaddr*)&cli,&cl);
-        if(fd<0){ perror("accept"); continue; }
+        if(fd<0){ if(errno==EINTR) continue; perror("accept"); continue; }
         set_nodelay(fd);
         std::cout<<"Klient ansluten\n";
 
+        dirty = false;
         std::atomic<bool> stop{false};
         std::mutex send_mx;
 
-        // RX: ta emot kommandon (text-rader), mappa senare till [AA TYP LEN DATA]
+        // ---- RX from PC -> styr UART ----
         std::thread t_rx([&](){
             std::string buf;
             char tmp[1024];
@@ -104,71 +160,68 @@ int main(int argc, char**argv){
                 if(r<=0) break;
                 buf.append(tmp, tmp+r);
                 size_t pos;
-                bool dirty = false;            // ändrades masken denna recv-omgång?
                 while((pos = buf.find('\n')) != std::string::npos){
                     std::string line = buf.substr(0,pos); buf.erase(0,pos+1);
+                    if(!line.empty() && line.back()=='\r') line.pop_back();
+                    std::cout << "CMD: " << line << "\n";
                     if(line=="quit") { stop=true; break; }
-                    // Här: Mappa line t.ex. "forward 120 1", "left 20 1", "stop"
-                    std::cout<<"CMD: "<<line<<"\n";
-                    // --- NEW: map "fram" (Up arrow from Win GUI) -> send single byte 0x01 over UART
-                    constexpr uint8_t BIT_FRAM = 0x80;
-                    constexpr uint8_t BIT_STOP = 0x40;
-                    constexpr uint8_t BIT_VANSTER = 0x20;
-                    constexpr uint8_t BIT_HOGER = 0x10;
-                    constexpr uint8_t BIT_BAKAT = 0x08;
 
-                    auto set_bit   = [&](uint8_t b){ current_mask = current_mask.load() |  b; dirty = true; };
-                    auto clear_bit = [&](uint8_t b){ current_mask = current_mask.load() & ~b; dirty = true; };
-                    uint8_t current_bit = current_mask.load(); 
-                    // --- TOLKNING AV KOMMANDON ---
-                    if(line=="stop_down")         set_bit(BIT_STOP);
-                    else if(line=="stop_up")      clear_bit(BIT_STOP);
+                    if(line=="stop_down") set_bit(BIT_STOP);
+                    else if(line=="stop_up") clear_bit(BIT_STOP);
+                      
+                    else if(line=="fram_down" && !(current_mask.load() & BIT_FRAM)) set_bit(BIT_FRAM);
+                    else if(line=="fram_up") clear_bit(BIT_FRAM);
                     
-                    else if(line=="fram_down" && !(current_mask & BIT_BAKAT))     set_bit(BIT_FRAM);
-                    else if(line=="fram_up")      clear_bit(BIT_FRAM);
-
-                    else if(line=="bakåt_down" && !(current_mask & BIT_FRAM))   set_bit(BIT_BAKAT);
-                    else if(line=="bakåt_up")     clear_bit(BIT_BAKAT);
-
-                    if(line=="vänster_down"){   
-                        set_bit(BIT_VANSTER);
-                        clear_bit(BIT_HOGER);
+                    else if(line=="bakåt_down" && !(current_mask.load() & BIT_FRAM)) set_bit(BIT_BAKAT);
+                    else if(line=="bakåt_up") clear_bit(BIT_BAKAT);
+                    
+                    else if(line=="vänster_down"){ 
+                        set_bit(BIT_VANSTER); 
+                        clear_bit(BIT_HOGER); 
                     }
-                    else if(line=="vänster_up")   clear_bit(BIT_VANSTER);
-
-                    if(line=="höger_down"){   
-                        set_bit(BIT_HOGER);
-                        clear_bit(BIT_VANSTER);
+                    else if(line=="vänster_up") clear_bit(BIT_VANSTER);
+                    
+                    else if(line=="höger_down"){ 
+                        set_bit(BIT_HOGER); 
+                        clear_bit(BIT_VANSTER); 
                     }
-                    else if(line=="höger_up")     clear_bit(BIT_HOGER);
+                    else if(line=="höger_up") clear_bit(BIT_HOGER);
 
+                    if (dirty && styr_fd >= 0) {
+                        uint8_t mask = current_mask.load(std::memory_order_relaxed);
+                        std::cout << "TX mask: 0x" << std::hex << int(mask) << std::dec << "\n";
 
-                    if(dirty && uart_fd >= 0){
-                        uint8_t out = current_mask.load();
-                        ssize_t wr = ::write(uart_fd, &out, 1);
-                        if(wr != 1) perror("UART write");
-                        tcdrain(uart_fd);
-                     }
-                
+                        ssize_t wr = ::write(styr_fd, &mask, 1);
+                        if (wr != 1) perror("UART write");
+                        tcdrain(styr_fd);
+                    }
                 }
             }
             stop=true;
         });
 
-        // TX: skicka telemetri 20 Hz (JSON per rad)
+        // ---- TX to PC (20 Hz). Sends latest sensor byte as hex ----
         std::thread t_tx([&](){
-            int seq=0;
-            using namespace std::chrono;
-            while(!stop){
-                double batt = 7.6 + 0.05*(seq%10);
-                double speed= 0.4*(seq%15);
-                auto  now  = duration<double>(steady_clock::now().time_since_epoch()).count();
+            int seq = 0;
+            while (!stop) {
+                double batt = 7.6;   // volts (placeholder)
+                double speed = 0.0;  // placeholder
+
+                char hex[3] = {0};  // "00" + NUL
+                if (g_sensor_seen.load(std::memory_order_relaxed)) {
+                    uint8_t b = g_sensor_byte.load(std::memory_order_relaxed);
+                    std::snprintf(hex, sizeof(hex), "%02X", b);
+                } else {
+                    hex[0] = '\0'; // GUI shows "sensor: --"
+                }
+
                 char line[256];
-                int n = snprintf(line, sizeof(line),
-                    "{\"seq\":%d,\"batt_v\":%.2f,\"speed\":%.2f,\"t\":%.3f}\n",
-                    seq++, batt, speed, now);
+                int n = std::snprintf(line, sizeof(line),
+                    "{\"seq\":%d,\"batt_v\":%.2f,\"speed\":%.2f,\"sensor_raw\":\"%s\"}\n",
+                    seq++, batt, speed, hex);
+
                 std::lock_guard<std::mutex> lk(send_mx);
-                if(send(fd, line, n, 0)<=0){ stop=true; break; }
+                if (send(fd, line, n, 0) <= 0) { stop = true; break; }
                 std::this_thread::sleep_for(std::chrono::milliseconds(50)); // 20 Hz
             }
         });
@@ -177,7 +230,10 @@ int main(int argc, char**argv){
         close(fd);
         std::cout<<"Klient frånkopplad\n";
     }
-    // --- NEW: close UART on exit
-    if(uart_fd >= 0) ::close(uart_fd);
+
+    global_stop = true;
+    if(t_sensor.joinable()) t_sensor.join();
+    if(styr_fd   >= 0) ::close(styr_fd);
+    if(sensor_fd >= 0) ::close(sensor_fd);
     return 0;
 }

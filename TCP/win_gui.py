@@ -3,6 +3,7 @@
 
 import socket, threading, sys, tkinter as tk 
 from tkinter import ttk  #tkinter python gui bibliotek, ttk = themed tkinter
+import json  
 
 PI_IP = sys.argv[1] if len(sys.argv)>1 else "192.168.1.42" #Hämta ip  från kommandoraden.
 PORT  = int(sys.argv[2]) if len(sys.argv)>2 else 5000   #Hämta port från kommandoraden
@@ -20,19 +21,14 @@ status = tk.StringVar(value="Connected to %s:%d" % (PI_IP, PORT))
 tele_v = tk.StringVar(value="V=--.-V  v=--.-  seq=--") #telemetridata
 ttk.Label(root, textvariable=status).pack(anchor="w", padx=10, pady=6) # font och storlekt mm
 ttk.Label(root, textvariable=tele_v, font=("Consolas",12)).pack(anchor="w", padx=10) #-||-
+sensor_v = tk.StringVar(value="sensor: --")  
+ttk.Label(root, textvariable=sensor_v, font=("Consolas",10)).pack(anchor="w", padx=10)  
+
 
 frm = ttk.Frame(root); frm.pack(padx=10, pady=10) #gui ruta, sstorlekt 10,10
 def send(cmd: str): #hjälpfunktion varje gång vi skickar till pi:n. 
     try: s.sendall((cmd+"\n").encode("utf-8")) #\n ger radbrytning .encode utf 8 omvandlar texten till bytes. sendall skickar hela meddelandent över tcp socketen s.
     except OSError: status.set("Disconnected") #Vid error sätt status till disconnected.
-
-
-# #kallar på hjälpfunktionen send . =None innebär att argument kan komma men ignoreras.
-# def on_up(_=None):    send("fram") #skickar textsträngen till raspberry omvandlat till bytes mha send.
-# def on_down(_=None):  send("bak")  
-# def on_left(_=None):  send("vänster")
-# def on_right(_=None): send("höger")
-# def on_space(_=None): send("stop")
 
 #fixar gui knapparna i frame, kopplas till kommandon mha command= . 
 # ttk.Button(frm, text="↑ Framåt", width=14, command=on_up).grid(row=0, column=1, padx=5, pady=5)
@@ -86,15 +82,23 @@ def rx_telemetry():
                 # Minimal parsing utan json: plocka ut siffror grovt
                 # (Byt gärna till json.loads för robusthet.)
                 # Ex: {"seq":12,"batt_v":7.62,"speed":3.20,"t":123.456}
-                try:
-                    parts = txt.replace("{","").replace("}","").split(",") #splittar med kommatecken och ersätter måsvingar för lättare läsning.
-                    kv = dict(p.split(":") for p in parts) #delar upp innehållet till dict
-                    seq = int(float(kv.get('"seq"', kv.get('seq','-1'))))
-                    v   = float(kv.get('"batt_v"', kv.get('batt_v','0'))) #olika parametrar
-                    sp  = float(kv.get('"speed"', kv.get('speed','0')))
-                    tele_v.set(f"V={v:.2f}V  v={sp:.2f}  seq={seq}")
-                except Exception:
-                    tele_v.set(txt[:60])
+            try:
+                obj = json.loads(txt)  # Pi sends one JSON object per line
+                seq = int(obj.get("seq", -1))
+                v   = float(obj.get("batt_v", 0.0))
+                sp  = float(obj.get("speed", 0.0))
+                tele_v.set(f"V={v:.2f}V  v={sp:.2f}  seq={seq}")
+
+                # Show sensor_raw (hex string) if present
+                raw = obj.get("sensor_raw", "")
+                if isinstance(raw, str) and raw:
+                    grouped = " ".join(raw[i:i+2] for i in range(0, len(raw), 2))  # "AABB" -> "AA BB"
+                    sensor_v.set(f"sensor: {grouped}")
+                else:
+                    sensor_v.set("sensor: --")
+            except Exception:
+                tele_v.set(txt[:60])
+                sensor_v.set("sensor: --")
         except OSError:
             break
 
