@@ -47,17 +47,19 @@ void echo_icp_init(void){
 }
 
 void uart_init(unsigned long baud) {
-	uint16_t ubrr = (F_CPU / 16 / baud) - 1;
+	UCSR0A |= (1 << U2X0);
+	
+	uint16_t ubrr = (F_CPU / 8 / baud) - 1;
 	
 	UBRR0H = (uint8_t)(ubrr >> 8);
 	UBRR0L = (uint8_t)ubrr;
 	
 	UCSR0B |= (1 << TXEN0);
 	
-	UCSR0C |= (1 << UCSZ01);
+	UCSR0C |= (1 << UCSZ01) | (1 << UCSZ00);
 }
 
-void uart_send_chart(char c) {
+void uart_send_char(char c) {
 	while(!(UCSR0A & (1 << UDRE0)));
 	UDR0 = c;
 }
@@ -83,8 +85,9 @@ void start_sens(void) {
 int main(void)
 {
 	echo_icp_init();
+	uart_init(115200);
 	sei();
-	DDRD = (1 << PD5_TRIG) | (1 << PD1);
+	DDRD |= (1 << PD5_TRIG) | (1 << PD1);
 	PORTD &= ~(1 << PD5_TRIG);
 	PORTD &= ~(1 << PD1);
 	uint8_t obstacle_present = 0;
@@ -111,10 +114,10 @@ int main(void)
 			}
 		}
 		if (obstacle_present && !has_sent_obstacle) {
-			uart_send_chart('1');
+			uart_send_char('1');
 			has_sent_obstacle = 1;
 		} else if(!obstacle_present && has_sent_obstacle) {
-			uart_send_chart('0');
+			uart_send_char('0');
 			has_sent_obstacle = 0;
 		}
 		_delay_ms(10);
