@@ -68,8 +68,10 @@ int main(void)
 {
 	echo_icp_init();
 	sei();
-	DDRD = (1 << PD5_TRIG);
+	DDRD = (1 << PD5_TRIG) | (1 << PD1);
 	PORTD &= ~(1 << PD5_TRIG);
+	PORTD &= ~(1 << PD1);
+	uint8_t obstacle_present = 0;
 	//odometer_int0_init();
     while (1) 
     {
@@ -83,8 +85,20 @@ int main(void)
 			uint16_t start = icr_start;
 			uint16_t end = icr_end;
 			
-			uint16_t length = 
+			uint16_t length = (end >= start) ? (end - start) : (end + 0x10000 - start);
+			
+			if (length < 2500) {
+				PORTD |= (1 << PD1);
+				obstacle_present = 1;	
+			} else {
+				PORTD &= ~(1<<PD1);
+			}
+		} else {
+			PORTD &= ~(1 << PD1);
 		}
+		if (obstacle_present) {
+			// TODO #SEND TO ENZO
+		}
+		_delay_ms(10);
     }
 }
-
