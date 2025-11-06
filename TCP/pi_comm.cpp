@@ -13,7 +13,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
-#include <algorithm>  // std::min (not used now, but fine)
+#include <algorithm>  
 #include <cerrno>     // errno/EINTR
 #include <cstdio>     // std::snprintf
 
@@ -94,6 +94,7 @@ int main(int argc, char**argv){
 
     std::atomic<bool> global_stop{false};
     std::atomic<bool>    g_obstacle{false};     // true when sensor says 0x01
+    std::atomic<int> OBSTACLE_STOP = 0;      // true when sensor says 0x01
     std::mutex           uart_mx; 
 
 
@@ -115,10 +116,11 @@ int main(int argc, char**argv){
                 // just set/clear the flag — DO NOT touch current_mask or write UART here
                 if (last == '1') {
                     g_obstacle.store(true, std::memory_order_relaxed);
-                    set_bit(BIT_HOGER);
+                    OBSTACLE_STOP = 1;
+
                 } else if (last == '0') {
                     g_obstacle.store(false, std::memory_order_relaxed);
-                    clear_bit(BIT_HOGER);
+                    OBSTACLE_STOP = 0;
                 }
             } else if(r == 0){
                 std::this_thread::sleep_for(std::chrono::milliseconds(50)); // unplug?
@@ -155,12 +157,28 @@ int main(int argc, char**argv){
         std::thread t_rx([&](){
             std::string buf;
             char tmp[1024];
+
             while(!stop){
+                std::cout<<"while fast loop1\n";
+                if (OBSTACLE_STOP && styr_fd >= 0) {
+                    set_bit(BIT_STOP);
+                    uint8_t mask = current_mask.load(std::memory_order_relaxed);
+                    std::cout << "TX mask: 0x" << std::hex << int(mask) << std::dec << "\n";
+
+                    ssize_t wr = ::write(styr_fd, &mask, 1);
+                    if (wr != 1) perror("UART write");
+                    tcdrain(styr_fd);
+
+                    while (OBSTACLE_STOP) {std::cout<<"fast i loop2\n";}
+
+                    clear_bit(BIT_STOP);
+                }
                 ssize_t r = recv(fd, tmp, sizeof(tmp), 0);
                 if(r<=0) break;
                 buf.append(tmp, tmp+r);
                 size_t pos;
                 while((pos = buf.find('\n')) != std::string::npos){
+                    std::cout<<"fast\n";
                     std::string line = buf.substr(0,pos); buf.erase(0,pos+1);
                     if(!line.empty() && line.back()=='\r') line.pop_back();
                     std::cout << "CMD: " << line << "\n";
