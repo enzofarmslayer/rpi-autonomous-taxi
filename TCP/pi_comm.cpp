@@ -116,6 +116,7 @@ int main(int argc, char**argv){
                 // just set/clear the flag — DO NOT touch current_mask or write UART here
                 if (last == '1') {
                     g_obstacle.store(true, std::memory_order_relaxed);
+                    shutdown(fd, SHUT_RDWR);
                     OBSTACLE_STOP = 1;
 
                 } else if (last == '0') {
@@ -173,7 +174,9 @@ int main(int argc, char**argv){
 
                     clear_bit(BIT_STOP);
                 }
-                ssize_t r = recv(fd, tmp, sizeof(tmp), 0);
+                if (!OBSTACLE_STOP) {
+                    ssize_t r = recv(fd, tmp, sizeof(tmp), 0);
+                }
                 if(r<=0) break;
                 buf.append(tmp, tmp+r);
                 size_t pos;

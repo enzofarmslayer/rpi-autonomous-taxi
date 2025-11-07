@@ -1,6 +1,6 @@
-// pi_uart_tx.cpp  (C++17)
 // Build: g++ -O2 -Wall -std=c++17 pi_uart_tx.cpp -o pi_uart_tx
 // Run:   ./pi_uart_tx /dev/ttyUSB0 115200
+// Test kan ta bort senare
 
 #include <array>
 #include <chrono>
