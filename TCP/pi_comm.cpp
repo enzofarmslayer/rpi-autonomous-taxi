@@ -133,7 +133,7 @@ int main(int argc, char**argv){
                     m = desired_mask.load(std::memory_order_relaxed);
                 }
                 else {
-                    n m = 0x40; // only STOP bit
+                    m = 0x40; // only STOP bit
                 }
                 ssize_t wr = ::write(styr_fd, &m, 1);
                 if (wr != 1) perror("UART write");
