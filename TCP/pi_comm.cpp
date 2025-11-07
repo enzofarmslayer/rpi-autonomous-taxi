@@ -17,6 +17,8 @@
 #include <cerrno>     // errno/EINTR
 #include <cstdio>     // std::snprintf
 
+#include <condition_variable>
+
 #include <fcntl.h>
 #include <termios.h>
 
@@ -61,9 +63,28 @@ static void set_nodelay(int fd){
 std::atomic<uint8_t> g_sensor_byte{0};     // latest byte seen from sensor UART
 std::atomic<bool>    g_sensor_seen{false}; // have we received anything yet?
 
+
 int main(int argc, char**argv){
     std::atomic<uint8_t> current_mask{0};  // bitmask to styr AVR
     
+    // ---- Single-writer UART pipeline ----
+    std::atomic<uint8_t> desired_mask{0};   // latest mask we want on styr UART
+    std::mutex           tx_mx;
+    std::condition_variable tx_cv;
+    bool tx_dirty = false;
+    bool tx_stop  = false;
+
+    // Call from ANY thread to request a UART send of the current mask
+    auto request_send_mask = [&](){
+        desired_mask.store(current_mask.load(std::memory_order_relaxed),
+                        std::memory_order_relaxed);
+        {
+            std::lock_guard<std::mutex> lk(tx_mx);
+            tx_dirty = true;
+        }
+        tx_cv.notify_one();
+    };
+
     constexpr uint8_t BIT_FRAM=0x80;
     constexpr uint8_t BIT_STOP=0x40;
     constexpr uint8_t BIT_VANSTER=0x20;
@@ -97,6 +118,32 @@ int main(int argc, char**argv){
     std::atomic<int> OBSTACLE_STOP = 0;      // true when sensor says 0x01
     std::mutex           uart_mx; 
 
+    // ---- Dedicated UART writer thread (single owner of styr_fd) ----
+    std::thread t_uart([&](){
+        std::unique_lock<std::mutex> lk(tx_mx);
+        while (!tx_stop) {
+            tx_cv.wait(lk, [&]{ return tx_dirty || tx_stop; });
+            if (tx_stop) break;
+            tx_dirty = false;    // consume the request
+            lk.unlock();
+
+            if (styr_fd >= 0) {
+                int8_t m;
+                if(!OBSTACLE_STOP){
+                    m = desired_mask.load(std::memory_order_relaxed);
+                }
+                else {
+                    n m = 0x40; // only STOP bit
+                }
+                ssize_t wr = ::write(styr_fd, &m, 1);
+                if (wr != 1) perror("UART write");
+                tcdrain(styr_fd);
+                std::cout << "UART TX mask=0x" << std::hex << int(m) << std::dec << "\n";
+            }
+
+            lk.lock();
+        }
+    });
 
     std::thread t_sensor([&](){
         uint8_t tmp[128];
@@ -116,12 +163,16 @@ int main(int argc, char**argv){
                 // just set/clear the flag — DO NOT touch current_mask or write UART here
                 if (last == '1') {
                     g_obstacle.store(true, std::memory_order_relaxed);
-                    shutdown(fd, SHUT_RDWR);
+                    //shutdown(fd, SHUT_RDWR);
                     OBSTACLE_STOP = 1;
+                    //set_bit(BIT_STOP);
+                    request_send_mask();
 
                 } else if (last == '0') {
                     g_obstacle.store(false, std::memory_order_relaxed);
                     OBSTACLE_STOP = 0;
+                    //clear_bit(BIT_STOP);
+                    request_send_mask();
                 }
             } else if(r == 0){
                 std::this_thread::sleep_for(std::chrono::milliseconds(50)); // unplug?
@@ -161,22 +212,22 @@ int main(int argc, char**argv){
 
             while(!stop){
                 std::cout<<"while fast loop1\n";
-                if (OBSTACLE_STOP && styr_fd >= 0) {
-                    set_bit(BIT_STOP);
-                    uint8_t mask = current_mask.load(std::memory_order_relaxed);
-                    std::cout << "TX mask: 0x" << std::hex << int(mask) << std::dec << "\n";
+                // if (OBSTACLE_STOP && styr_fd >= 0) {
+                //     set_bit(BIT_STOP);
+                //     uint8_t mask = current_mask.load(std::memory_order_relaxed);
+                //     std::cout << "TX mask: 0x" << std::hex << int(mask) << std::dec << "\n";
 
-                    ssize_t wr = ::write(styr_fd, &mask, 1);
-                    if (wr != 1) perror("UART write");
-                    tcdrain(styr_fd);
+                //     ssize_t wr = ::write(styr_fd, &mask, 1);
+                //     if (wr != 1) perror("UART write");
+                //     tcdrain(styr_fd);
 
-                    while (OBSTACLE_STOP) {std::cout<<"fast i loop2\n";}
+                //     while (OBSTACLE_STOP) {std::cout<<"fast i loop2\n";}
 
-                    clear_bit(BIT_STOP);
-                }
-                if (!OBSTACLE_STOP) {
-                    ssize_t r = recv(fd, tmp, sizeof(tmp), 0);
-                }
+                //     clear_bit(BIT_STOP);
+                // }
+         
+                ssize_t r = recv(fd, tmp, sizeof(tmp), 0);
+                
                 if(r<=0) break;
                 buf.append(tmp, tmp+r);
                 size_t pos;
@@ -209,12 +260,8 @@ int main(int argc, char**argv){
                     else if(line=="höger_up") clear_bit(BIT_HOGER);
 
                     if (dirty && styr_fd >= 0) {
-                        uint8_t mask = current_mask.load(std::memory_order_relaxed);
-                        std::cout << "TX mask: 0x" << std::hex << int(mask) << std::dec << "\n";
-
-                        ssize_t wr = ::write(styr_fd, &mask, 1);
-                        if (wr != 1) perror("UART write");
-                        tcdrain(styr_fd);
+                        request_send_mask();
+                        dirty = false;
                     }
                 }
             }
