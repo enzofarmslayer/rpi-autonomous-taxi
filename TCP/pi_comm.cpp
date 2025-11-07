@@ -129,7 +129,8 @@ int main(int argc, char**argv){
 
             if (styr_fd >= 0) {
                 int8_t m;
-                if(!OBSTACLE_STOP){
+                // Kan backa om obstacle stop är aktivt
+                if(!OBSTACLE_STOP && desired_mask.load(std::memory_order_relaxed) & BIT_BAKAT) {
                     m = desired_mask.load(std::memory_order_relaxed);
                 }
                 else {
