@@ -11,6 +11,10 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <stdint.h>
+#include "servo_test.h"
+#include "servot.h"
+
+#define TEST
 
 #define PD2_DIR PD2
 #define PD3_BRAKE PD3
@@ -20,17 +24,19 @@
 #define MYUBRR (F_CPU/8/BAUD - 1)
 
 uint8_t MAX_PERCENT = 128;
-uint16_t TURN_LEFT = 2000;
-uint16_t TURN_RIGHT = 4000;
-uint16_t TURN_NEUTRAL = 3000;
-
 
 
 void pwn_init(void) {
+	// Fast PWM on Timer2, non-inverting mode on OC2B
 	TCCR2A = (1 << WGM21) | (1 << WGM20) | (1 << COM2B1);
+
+	// Fast PWM mode (WGM22) + prescaler 32 (CS21, CS20)
 	TCCR2B = (1 << WGM22) | (1 << CS21) | (1 << CS20);
+
 	OCR2A = MAX_PERCENT;
 	OCR2B = 0;
+
+	// Configure ports
 	DDRD |= (1 << PD2_DIR) | (1 << PD3_BRAKE) | (1 << PD6_PWM);
 }
 
@@ -45,19 +51,6 @@ void set_gas_percent(uint8_t percent, uint8_t dir) {
 	
 	if (percent > 100) percent = 100;
 	OCR2B = (uint16_t)percent*MAX_PERCENT/100;
-}
-
-void trn_init(void) {
-    TCCR1A = (1 << COM1B1) | (1 << WGM11);
-    TCCR1B = (1 << WGM13) | (1 << WGM12);
-	
-	ICR1 = 39999;
-	
-	OCR1B = TURN_NEUTRAL;
-
-	DDRD |= (1 << PD4_TRN);
-	
-	TCCR1B |= (1 << CS11);
 }
 
 void uart_init(void) {
@@ -78,52 +71,16 @@ void stop() {
 	PORTD |= (1 << PD3_BRAKE);
 }
 
-void set_turn_value(uint8_t percent) {
-	if (percent < 100) {
-		uint16_t turn_value = TURN_LEFT + 20 * percent;
-		OCR1B = turn_value;	
-	} else {
-		OCR1B = TURN_RIGHT;
-	}
-}
 
 int main(void)
 {
 	pwn_init();
-	trn_init();
+	servo_init();
 	uart_init();
 	
 	while (1) {
-		uint8_t data;
-		data = uart_reciever();
-		uint8_t speed = (data >> 7) & 0x01;
-		uint8_t stopping = (data >> 6) & 0x01;
-		uint8_t left = (data >> 5) & 0x01;
-		uint8_t right = (data >> 4) & 0x01;
-		uint8_t reverse = (data >> 3) & 0x01;
-		
-		if (stopping) {
-			stop();
-		}
-		else if (speed) {
-			set_gas_percent(80, 0);
-		}
-		else if (reverse) {
-			set_gas_percent(80,1);
-		}
-		else {
-			set_gas_percent(0, 0);
-		}
-
-		if (left) {
-			set_turn_value(0);
-		}
-		else if (right) {
-			set_turn_value(100);
-			
-		}
-		else {
-			set_turn_value(50);
-		}
+		#ifdef TEST
+			servo_test_task();  
+		#endif
 	}
 }
