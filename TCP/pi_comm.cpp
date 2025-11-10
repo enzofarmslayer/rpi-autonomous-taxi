@@ -13,7 +13,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
-#include <algorithm>  
+//#include <algorithm>  
 #include <cerrno>     // errno/EINTR
 #include <cstdio>     // std::snprintf
 
@@ -59,10 +59,9 @@ static void set_nodelay(int fd){
     int one=1; setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
 }
 
-// --- Latest-sensor-byte only ---
+// --- Latest-sensor-byte only --- 
 std::atomic<uint8_t> g_sensor_byte{0};     // latest byte seen from sensor UART
 std::atomic<bool>    g_sensor_seen{false}; // have we received anything yet?
-
 
 int main(int argc, char**argv){
     std::atomic<uint8_t> current_mask{0};  // bitmask to styr AVR
@@ -114,9 +113,9 @@ int main(int argc, char**argv){
     else              std::cout << "sensor UART open: " << sensor_dev << " @" << sensor_baud << "\n";
 
     std::atomic<bool> global_stop{false};
-    std::atomic<bool>    g_obstacle{false};     // true when sensor says 0x01
+    //std::atomic<bool>    g_obstacle{false};     // true when sensor says 0x01
     std::atomic<int> OBSTACLE_STOP = 0;      // true when sensor says 0x01
-    std::mutex           uart_mx; 
+    //std::mutex           uart_mx; 
 
     // ---- Dedicated UART writer thread (single owner of styr_fd) ----
     std::thread t_uart([&](){
@@ -138,7 +137,7 @@ int main(int argc, char**argv){
                 ssize_t wr = ::write(styr_fd, &m, 1);
                 if (wr != 1) perror("UART write");
                 tcdrain(styr_fd);
-                std::cout << "UART TX mask=0x" << std::hex << int(m) << std::dec << "\n";
+                //std::cout << "UART TX mask=0x" << std::hex << int(m) << std::dec << "\n";
             }
 
             lk.lock();
@@ -162,14 +161,14 @@ int main(int argc, char**argv){
 
                 // just set/clear the flag — DO NOT touch current_mask or write UART here
                 if (last == '1') {
-                    g_obstacle.store(true, std::memory_order_relaxed);
+                    //g_obstacle.store(true, std::memory_order_relaxed);
                     //shutdown(fd, SHUT_RDWR);
                     OBSTACLE_STOP = 1;
                     //set_bit(BIT_STOP);
                     request_send_mask();
 
                 } else if (last == '0') {
-                    g_obstacle.store(false, std::memory_order_relaxed);
+                    //g_obstacle.store(false, std::memory_order_relaxed);
                     OBSTACLE_STOP = 0;
                     //clear_bit(BIT_STOP);
                     request_send_mask();
@@ -183,7 +182,7 @@ int main(int argc, char**argv){
         }
     });
 
-    // ---- TCP server ----
+    // --------------------------- TCP server ----------------------------------
     int srv = ::socket(AF_INET, SOCK_STREAM, 0);
     if(srv<0){ perror("socket"); global_stop=true; t_sensor.join(); return 1; }
     int one=1; setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
@@ -210,32 +209,18 @@ int main(int argc, char**argv){
             std::string buf;
             char tmp[1024];
 
-            while(!stop){
-                std::cout<<"while fast loop1\n";
-                // if (OBSTACLE_STOP && styr_fd >= 0) {
-                //     set_bit(BIT_STOP);
-                //     uint8_t mask = current_mask.load(std::memory_order_relaxed);
-                //     std::cout << "TX mask: 0x" << std::hex << int(mask) << std::dec << "\n";
-
-                //     ssize_t wr = ::write(styr_fd, &mask, 1);
-                //     if (wr != 1) perror("UART write");
-                //     tcdrain(styr_fd);
-
-                //     while (OBSTACLE_STOP) {std::cout<<"fast i loop2\n";}
-
-                //     clear_bit(BIT_STOP);
-                // }
-         
+            while(!stop){         
                 ssize_t r = recv(fd, tmp, sizeof(tmp), 0);
                 
                 if(r<=0) break;
                 buf.append(tmp, tmp+r);
                 size_t pos;
                 while((pos = buf.find('\n')) != std::string::npos){
-                    std::cout<<"fast\n";
+                    //std::cout<<"fast\n";
                     std::string line = buf.substr(0,pos); buf.erase(0,pos+1);
                     if(!line.empty() && line.back()=='\r') line.pop_back();
                     std::cout << "CMD: " << line << "\n";
+                    
                     if(line=="quit") { stop=true; break; }
 
                     if(line=="stop_down") set_bit(BIT_STOP);
