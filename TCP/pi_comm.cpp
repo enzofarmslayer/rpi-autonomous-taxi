@@ -128,14 +128,13 @@ int main(int argc, char**argv){
             lk.unlock();
 
             if (styr_fd >= 0) {
-                int8_t m;
-                // Kan backa om obstacle stop är aktivt
-                if(!OBSTACLE_STOP && desired_mask.load(std::memory_order_relaxed) & BIT_BAKAT) {
-                    m = desired_mask.load(std::memory_order_relaxed);
+                int8_t m = desired_mask.load(std::memory_order_relaxed);
+                if(OBSTACLE_STOP){
+                    if(m & BIT_FRAM) {
+                        m = 0x40;
+                    }
                 }
-                else {
-                    m = 0x40; // only STOP bit
-                }
+
                 ssize_t wr = ::write(styr_fd, &m, 1);
                 if (wr != 1) perror("UART write");
                 tcdrain(styr_fd);
