@@ -22,10 +22,15 @@ int main(int argc, char** argv) {
     Fd styr   = open_uart(cfg.styr_dev.c_str(),   cfg.styr_baud);
     Fd sensor = open_uart(cfg.sensor_dev.c_str(), cfg.sensor_baud);
 
-    if (!styr)   LOG_ERR("Kunde inte öppna styr-UART "   << cfg.styr_dev);
-    else         LOG_INFO("styr UART   open: " << cfg.styr_dev   << " @" << cfg.styr_baud);
-    if (!sensor) LOG_ERR("Kunde inte öppna sensor-UART " << cfg.sensor_dev);
-    else         LOG_INFO("sensor UART open: " << cfg.sensor_dev << " @" << cfg.sensor_baud);
+    if (!styr) { 
+        LOG_ERROR("Kunde inte öppna styr-UART " << cfg.styr_dev); 
+    } else { 
+        LOG_INFO("styr UART open: " << cfg.styr_dev << " @" << cfg.styr_baud); 
+    } if (!sensor) {
+        LOG_ERROR("Kunde inte öppna sensor-UART " << cfg.sensor_dev); 
+    } else {
+        LOG_INFO("sensor UART open: " << cfg.sensor_dev << " @" << cfg.sensor_baud); 
+    }
 
     SharedState st;
 

@@ -22,6 +22,7 @@ void UartWriter::stop() {
 }
 
 void UartWriter::request_send_now() {
+    auto cur2 = st_.current_mask.load();
     st_.desired_mask.store(st_.current_mask.load());
     {
         std::lock_guard<std::mutex> lk(mx_);
@@ -40,15 +41,17 @@ void UartWriter::run() {
 
         if (styr_) {
             uint8_t out;
-            const uint8_t want = st_.desired_mask.load();
-            const bool can_back = (st_.obstacle_stop.load() == 0) &&
-                                  (want & bit(Bit::Bakat));
-            out = can_back ? want : bit(Bit::Stop);
+            uint8_t current = st_.desired_mask.load();
 
-            ssize_t wr = ::write(styr_.get(), &out, 1);
+            if(st_.obstacle_stop){
+                if(current & 0x80) {
+                    current = 0x40;
+                }
+            }
+            
+            ssize_t wr = ::write(styr_.get(), &current, 1);
             if (wr != 1) perror("UART write");
             tcdrain(styr_.get());
-            LOG_INFO("UART TX mask=0x" << std::hex << int(out) << std::dec);
         }
 
         lk.lock();
