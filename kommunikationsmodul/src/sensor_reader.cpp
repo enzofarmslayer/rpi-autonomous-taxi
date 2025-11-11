@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <cerrno>
 #include <vector>
+using namespace std;
 
 SensorReader::SensorReader(Fd& sensor_fd, SharedState& st, UartWriter& uw)
     : sensor_(sensor_fd), st_(st), uartw_(uw) {}
