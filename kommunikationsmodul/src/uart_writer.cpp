@@ -43,9 +43,9 @@ void UartWriter::run() {
             uint8_t out;
             uint8_t current = st_.desired_mask.load();
 
-            if(st_.obstacle_stop){
-                if(current & 0x80) {
-                    current = 0x40;
+            if(st_.obstacle_stop.loafd()){
+                if(current & bit(Bit::Fram)){
+                    current = bit(Bit::Stop);
                 }
             }
             

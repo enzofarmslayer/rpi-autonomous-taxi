@@ -21,7 +21,7 @@ void SensorReader::run() {
         ssize_t r = ::read(sensor_.get(), buf.data(), buf.size()); // blocking
         if (r > 0) {
             uint8_t last = buf[size_t(r - 1)];
-            std::cout << last << endl;
+            //std::cout << last << endl;
             st_.sensor_seen.store(true);
             st_.sensor_byte.store(last);
 
@@ -31,8 +31,7 @@ void SensorReader::run() {
             if (s[0] == 'D' && s[1] == '=') {
                 int distance = std::stoi(s.substr(2));
                 std::cout << "Distance = " << distance << " cm" << std::endl;
-            
-}
+            }
 
             // Edge-trigger: only act if it actually changed
             if (!have_prev || last != prev) {

@@ -10,4 +10,6 @@ struct SharedState {
     std::atomic<uint8_t> desired_mask{0};   // latest mask we want on styr UART
     //std::atomic<bool>    obstacle{0};       // true when sensor says 0x01
     std::atomic<bool>    global_stop{false};
+    std::atomic<uint8_t>     offset_angle{0};   // calibration offset for steering angle TCP
+    //std::atomic<uint8_t>     offset_from_center{0};  // calibration offset for lateral position TCP
 };

@@ -1,0 +1,52 @@
+#pragma once
+#include <thread>
+#include <atomic>
+#include <cstdint>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include <cstring>
+#include "shared_state.hpp"
+#include "log.hpp"
+
+class CamOffsetRx {
+public:
+    explicit CamOffsetRx(SharedState& st) : st_(st) {}
+    void start() { thr_ = std::thread(&CamOffsetRx::run, this); }
+
+private:
+    void run() {
+        // 1) Skapa UNIX DGRAM-socket
+        int fd = ::socket(AF_UNIX, SOCK_DGRAM, 0);
+        if (fd < 0) { perror("socket"); return; }
+
+        // 2) Adress + bind
+        sockaddr_un addr{}; 
+        addr.sun_family = AF_UNIX;
+        std::strcpy(addr.sun_path, "/tmp/cam_offset.sock");
+        ::unlink(addr.sun_path);  // ta bort ev. gammal
+        if (::bind(fd, (sockaddr*)&addr, sizeof(addr)) < 0) {
+            perror("bind");
+            ::close(fd);
+            return;
+        }
+
+        LOG_INFO("CamOffsetRx: lyssnar på " << addr.sun_path);
+
+        uint8_t angle; 
+        while (true) {
+            // 3) Blockerande read på 1 byte
+            ssize_t n = ::recv(fd, &angle, sizeof(angle), 0);
+            if (n == 1) {
+                // MSB reserverad -> behåll endast 7 bitar
+                uint8_t val7 = angle & 0x7F;
+                st_.cam_offset_angle.store(val7, std::memory_order_relaxed);
+                LOG_INFO("Mottog cam angle (7bit): " << int(val7));
+            }
+        }
+        // (ingen clean shutdown här; processen avslutar ändå och /tmp-socket försvinner)
+    }
+
+    SharedState& st_;
+    std::thread  thr_;
+};
