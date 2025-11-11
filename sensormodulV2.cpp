@@ -14,9 +14,9 @@
 
 //---------------------------------------------------------------------------------------------------HALL SENSOR---------------------------------------------------------------------------------------------------
 #define PULSES_PER_ROTATION 10 
-#define WHEEL_DIAMETER_MM 80.0    
+#define WHEEL_DIAMETER_MM 95.0    
 #define WHEEL_CIRCUMFERENCE_MM (WHEEL_DIAMETER_MM * 3.14159)
-#define WHEELBASE_MM XX  // Distance between left and right wheel, needed ??
+#define WHEELBASE_MM 200.0  // Distance between left and right wheel, needed ??
 
 // Pin definitions
 #define HALL_LEFT_PIN PD2           // INT0
@@ -254,8 +254,33 @@ int main(void)
 	while (1)
 	{	
 		// Hall sensor
-		_delay_ms(100);
+		_delay_ms(50);
 		update_odometry(&odom);
+
+		// Hall sensor testing 
+		uint32_t dist_mm = (uint32_t)(odom.average_distance_mm + 0.5); 
+		uint32_t speed_mm_s = (uint32_t)(odom.average_speed_mm_s + 0.5);
+
+		char buf[100]; 
+		sprintf(buf, "L=%lu, R=%lu, Dist=%lumm, Speed=%lumm/s\n", 
+				odom.left_pulses, 
+				odom.right_pulses, 
+				dist_mm,
+				speed_mm_s); 
+		for (char *p = buf; *p; p++) uart_send_char(*p); 
+		
+		/*
+		// Send odometry data 
+		int distance_cm = (int)((odom.average_distance_mm / 10.0) + 0.5); // mm → cm 
+		int speed_cm_s = (int)((odom.average_speed_mm_s * 100.0) + 0.5); // m/s → cm/s * 100 
+
+		char buf[64]; 
+		sprintf(buf, "D=%d,V=%d,R=%.0f\n",
+				distance_cm,
+				speed_cm_s,
+				odom.rotation_deg); // rotation in degrees
+		for (char *p = buf; *p; p++) uart_send_char(*p);
+		*/
 		
 		// Ultrasonic sensor
 		echo_done = 0;
