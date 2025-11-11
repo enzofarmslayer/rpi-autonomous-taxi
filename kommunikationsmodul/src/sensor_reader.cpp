@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <cerrno>
 #include <vector>
+using namespace std;
 
 SensorReader::SensorReader(Fd& sensor_fd, SharedState& st, UartWriter& uw)
     : sensor_(sensor_fd), st_(st), uartw_(uw) {}
@@ -21,17 +22,9 @@ void SensorReader::run() {
         ssize_t r = ::read(sensor_.get(), buf.data(), buf.size()); // blocking
         if (r > 0) {
             uint8_t last = buf[size_t(r - 1)];
-            //std::cout << last << endl;
+            std::cout << last << endl;
             st_.sensor_seen.store(true);
             st_.sensor_byte.store(last);
-
-            
-            // Hall sensor test
-            std::string s(reinterpret_cast<char*>(buf.data()), r);
-            if (s[0] == 'D' && s[1] == '=') {
-                int distance = std::stoi(s.substr(2));
-                std::cout << "Distance = " << distance << " cm" << std::endl;
-            }
 
             // Edge-trigger: only act if it actually changed
             if (!have_prev || last != prev) {
