@@ -114,8 +114,38 @@ void SensorReader::handle_hall_sensor(const std::string& line) {
     try {
         // Parse "D=123" format
         std::string distance_str = line.substr(2);  // Skip "D="
-        int distance = std::stoi(distance_str);
         
+        // Debug: Show what we're trying to parse
+        std::cout << "Parsing distance string: [" << distance_str << "]" << std::endl;
+        
+        // Remove any remaining whitespace
+        distance_str.erase(0, distance_str.find_first_not_of(" \r\t\n"));
+        distance_str.erase(distance_str.find_last_not_of(" \r\t\n") + 1);
+        
+        // Check if string is empty or non-numeric
+        if (distance_str.empty()) {
+            std::cerr << "Empty distance string after D=" << std::endl;
+            return;
+        }
+        
+        // Validate it contains only digits (and optional minus sign)
+        bool valid = true;
+        for (size_t i = 0; i < distance_str.size(); i++) {
+            if (i == 0 && distance_str[i] == '-') continue;  // Allow negative
+            if (!std::isdigit(distance_str[i])) {
+                valid = false;
+                std::cerr << "Non-digit character '" << distance_str[i] 
+                          << "' at position " << i << std::endl;
+                break;
+            }
+        }
+        
+        if (!valid) {
+            std::cerr << "Invalid distance format: " << distance_str << std::endl;
+            return;
+        }
+        
+        int distance = std::stoi(distance_str);
         std::cout << "Distance = " << distance << " cm" << std::endl;
         
         // Store distance in shared state if you have a field for it
@@ -128,6 +158,7 @@ void SensorReader::handle_hall_sensor(const std::string& line) {
         // }
         
     } catch (const std::exception& e) {
-        std::cerr << "Failed to parse Hall sensor distance: " << e.what() << std::endl;
+        std::cerr << "Failed to parse Hall sensor distance: " << e.what() 
+                  << " from line: " << line << std::endl;
     }
 }
