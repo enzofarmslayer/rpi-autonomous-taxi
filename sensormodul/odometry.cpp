@@ -94,7 +94,7 @@ void update_odometry(Odometry* odom) {
 
 	uint32_t delta_time = current_time - last_time_ms;
 
-	// Store raw pulse counts
+	// Store pulse counts
 	odom->left_pulses = current_left;
 	odom->right_pulses = current_right;
 
@@ -128,10 +128,4 @@ void reset_odometry(void) {
 	sei();
 }
 
-float get_distance_meters(void) {
-	return calculate_wheel_distance_mm(pulses_left + pulses_right) / 2000.0; // average
-}
 
-float get_speed_m_s(Odometry* odom) {
-	return odom->average_speed_mm_s / 1000.0;
-}

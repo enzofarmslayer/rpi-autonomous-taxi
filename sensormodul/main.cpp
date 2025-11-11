@@ -57,19 +57,14 @@ int main(void)
 		for (char *p = buf; *p; p++) uart_send_char(*p); 
 		*/
 		
-		// Send odometry data 
+		// Send odometry data, beginning with just distance travelled 
 		int distance_cm = (int)((odom.average_distance_mm / 10.0) + 0.5); // convert mm to cm
 		int speed_cm_s = (int)((odom.average_speed_mm_s / 10.0) + 0.5);   // convert mm/s to cm/s
 
 		char buf[64]; 
-		sprintf(buf, "PL=%lu,PR=%d,D=%d,V=%d\n",
-				odom.left_pulses,
-				odom.right_pulses,
-				(int)distance_cm,
-				(int)speed_cm_s);
-
-		for (char *p = buf; *p; p++) uart_send_char(*p);
-		
+		sprintf(buf, "D=%d\n", (int)distance_cm);
+		for (char *p = buf; *p; p++)
+			uart_send_char(*p);
 		
 		// Ultrasonic sensor
 		echo_done = 0;
