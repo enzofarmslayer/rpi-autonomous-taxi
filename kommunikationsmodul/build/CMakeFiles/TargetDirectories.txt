@@ -1,0 +1,3 @@
+/home/rosagg/taxibil/kommunikationsmodul/build/CMakeFiles/kommunikationsmodul.dir
+/home/rosagg/taxibil/kommunikationsmodul/build/CMakeFiles/edit_cache.dir
+/home/rosagg/taxibil/kommunikationsmodul/build/CMakeFiles/rebuild_cache.dir

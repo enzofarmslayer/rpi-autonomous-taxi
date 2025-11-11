@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/kommunikationsmodul.dir/src/main.cpp.o CMakeFiles/kommunikationsmodul.dir/src/uart.cpp.o CMakeFiles/kommunikationsmodul.dir/src/uart_writer.cpp.o CMakeFiles/kommunikationsmodul.dir/src/tcp_session.cpp.o CMakeFiles/kommunikationsmodul.dir/src/sensor_reader.cpp.o -o kommunikationsmodul  -lpthread 

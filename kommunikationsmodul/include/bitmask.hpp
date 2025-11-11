@@ -2,11 +2,11 @@
 #include <cstdint>
 
 enum class Bit : uint8_t {
-    BIT_FRAM=0x80;
-    BIT_STOP=0x40;
-    BIT_VANSTER=0x20;
-    BIT_HOGER=0x10;
-    BIT_BAKAT=0x08;
+    Fram=0x80,
+    Stop=0x40,
+    Vanster=0x20,
+    Hoger=0x10,
+    Bakat=0x08,
 };
 
 //Behövs detta?

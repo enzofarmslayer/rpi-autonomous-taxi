@@ -38,6 +38,7 @@ void TcpSession::rx_loop() {
     stop_ = true;
 }
 
+// Ska ändras sen
 void TcpSession::tx_loop() {
     int seq = 0;
     while (!stop_) {
@@ -61,7 +62,7 @@ bool TcpSession::handle_command(const std::string& cmd) {
     LOG_INFO("CMD: " << cmd);
     if (cmd == "quit") return false;
 
-    auto set_bit = [&](Bit b) {
+    auto set_bit = [&](Bit b) {        
         uint8_t m = st_.current_mask.load();
         m |= bit(b);
         st_.current_mask.store(m);
@@ -81,12 +82,15 @@ bool TcpSession::handle_command(const std::string& cmd) {
     else if (cmd == "bakåt_down") {
         if (!(st_.current_mask.load() & bit(Bit::Fram))) { set_bit(Bit::Bakat); request(); }
     } else if (cmd == "bakåt_up") { clear_bit(Bit::Bakat); request(); }
-    else if (cmd == "vänster_down") {
+    
+    if (cmd == "vänster_down") {
         set_bit(Bit::Vanster); clear_bit(Bit::Hoger); request();
     } else if (cmd == "vänster_up") { clear_bit(Bit::Vanster); request(); }
     else if (cmd == "höger_down") {
         set_bit(Bit::Hoger); clear_bit(Bit::Vanster); request();
     } else if (cmd == "höger_up") { clear_bit(Bit::Hoger); request(); }
+
+    
     // okända kommandon ignoreras
     return true;
 }
