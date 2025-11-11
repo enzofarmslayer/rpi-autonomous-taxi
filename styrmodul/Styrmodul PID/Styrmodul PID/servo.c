@@ -29,8 +29,10 @@ void set_servo_value(uint8_t percent) {
 	if (percent < 100) {
 		uint16_t turn_value = TURN_LEFT + 20 * percent;
 		OCR1B = turn_value;
+		g_last_out = percent; 
 		} else {
 		OCR1B = TURN_RIGHT;
+        g_last_out = 100; 
 	}
 }
 
@@ -80,7 +82,7 @@ bool ms_elapsed(uint32_t *t, uint16_t period_ms) {
 	return false;
 }
 
-// Kör servo_pid() var 'period_ms' utan att blockera
+// KÃ¶r servo_pid() var 'period_ms' utan att blockera
 void servo_tick_run(int8_t current_error) {
 	static uint32_t t_servo = 0;
 	const uint16_t period_ms = 10;  // 100 Hz PID (justera vid behov)

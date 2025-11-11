@@ -1,81 +1,93 @@
-#include <avr/io.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include "servo.h"
+#include <stdbool.h>
 #define F_CPU 16000000UL
 
-// We reuse your clock/timer system
-extern uint32_t millis(void);
-extern bool ms_elapsed(uint32_t *t, uint16_t period_ms);
+volatile uint8_t g_last_out = 0;
 
-// UART settings
-#define BAUD 115200UL
-#define MYUBRR (F_CPU / 8 / BAUD - 1)
+uint16_t TURN_LEFT = 2000;
+uint16_t TURN_RIGHT = 4000;
+uint16_t TURN_NEUTRAL = 3000;
 
-// optional: export servo output value from your servo code
-extern volatile uint8_t g_last_out;
 
-// === Simple UART helpers ===
-static void uart_init(void) {
-	UCSR0A = (1 << U2X0);
-	UBRR0H = (uint8_t)(MYUBRR >> 8);
-	UBRR0L = (uint8_t)(MYUBRR);
-	UCSR0B = (1 << TXEN0);
-	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);  // 8N1
+static volatile uint32_t _ms = 0;
+
+
+
+void servo_init(void) {
+	TCCR1A = (1 << COM1B1) | (1 << WGM11);
+	TCCR1B = (1 << WGM13) | (1 << WGM12);
+
+	ICR1 = 39999; 	 // Set PWM period (50 Hz)
+	
+	OCR1B = TURN_NEUTRAL;
+	DDRD |= (1 << PD4);
+
+	TCCR1B |= (1 << CS11); // Prescaler = 8
 }
 
-static void uart_putc(char c) {
-	while (!(UCSR0A & (1 << UDRE0)));
-	UDR0 = c;
-}
-
-static void uart_uint(uint32_t x) {
-	char buf[11];
-	int i = 10;
-	buf[i] = 0;
-	do {
-		buf[--i] = '0' + (x % 10);
-		x /= 10;
-	} while (x && i);
-	while (buf[i]) uart_putc(buf[i++]);
-}
-
-static void uart_int(int32_t v) {
-	if (v < 0) {
-		uart_putc('-');
-		v = -v;
+void set_servo_value(uint8_t percent) {
+	if (percent < 100) {
+		uint16_t turn_value = TURN_LEFT + 20 * percent;
+		OCR1B = turn_value;
+		g_last_out = percent; 
+		} else {
+		OCR1B = TURN_RIGHT;
+        g_last_out = 100; 
 	}
-	uart_uint((uint32_t)v);
 }
 
-static void uart_str(const char *s) {
-	while (*s) uart_putc(*s++);
+void servo_pid(int8_t error_angle) {
+	static int32_t accumulated_error = 0;
+	static int8_t previous = 0;
+
+	int16_t d_error = error_angle - previous;
+	accumulated_error += error_angle;
+
+	int32_t servo_val = 50 + PID_P * error_angle + PID_D * d_error + PID_I * accumulated_error;
+	if (servo_val > 100) servo_val = 100;
+	if (servo_val < 0) servo_val = 0;
+	set_servo_value((uint8_t)servo_val);
+
+	previous = error_angle;
 }
 
-// === Simple step test ===
-void servo_test_init(void) {
-	uart_init();
-	servo_init();
-	uart_str("time_ms;error;output\n");
+
+void clock_init(){
+	// Timer0 CTC, prescaler 64 ? 16 MHz/64 = 250 kHz ? 1 ms = 250 counts ? OCR0=249
+	TCCR0A = (1 << WGM01);        // CTC mode
+	OCR0A  = 249;                 // 1 ms vid 16 MHz & /64
+	TIMSK0 |= (1 << OCIE0A);       // enable compare match interrupt
+	TCCR0B |= (1 << CS01) | (1 << CS00); // prescaler 64
 }
 
-void servo_test_task(void) {
-	static uint32_t t_step = 0;
-	static int8_t error = +15;
-	static uint32_t t_print = 0;
 
-	// Toggle error every 5 seconds
-	if (ms_elapsed(&t_step, 5000)) {
-		error = (error == +15) ? -15 : +15;
+ISR(TIMER0_COMPA_vect) { _ms++; }
+
+uint32_t millis(void) {
+	uint32_t m;
+	uint8_t s = SREG;
+	cli();
+	m = _ms;
+	SREG = s;
+	return m;
+}
+
+
+bool ms_elapsed(uint32_t *t, uint16_t period_ms) {
+	uint32_t now = millis();
+	if ((uint32_t)(now - *t) >= period_ms) {
+		*t = now;
+		return true;
 	}
+	return false;
+}
 
-	// Run your servo PID every loop (you can internally rate limit)
-	servo_tick_run(error);
+// Kör servo_pid() var 'period_ms' utan att blockera
+void servo_tick_run(int8_t current_error) {
+	static uint32_t t_servo = 0;
+	const uint16_t period_ms = 10;  // 100 Hz PID (justera vid behov)
 
-	// Print every 100 ms
-	if (ms_elapsed(&t_print, 100)) {
-		uart_uint(millis()); uart_putc(';');
-		uart_int(error);     uart_putc(';');
-		uart_uint(g_last_out); uart_putc('\n');
+	if (ms_elapsed(&t_servo, period_ms)) {
+		servo_pid(current_error);
 	}
 }
