@@ -5,6 +5,7 @@
 #include "uart_writer.hpp"
 #include "sensor_reader.hpp"
 #include "tcp_session.hpp"
+#include "cam_offset_rx.hpp"
 
 #include <arpa/inet.h>
 #include <cerrno>
@@ -39,6 +40,9 @@ int main(int argc, char** argv) {
 
     SensorReader sens(sensor, st, uartw);
     sens.start();
+
+    CamOffsetRx cam_rx(st);
+    cam_rx.start();
 
     int srv = make_server(cfg.host, cfg.port);
     if (srv < 0) {

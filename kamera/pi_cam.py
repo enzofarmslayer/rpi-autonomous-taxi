@@ -8,6 +8,10 @@ import math
 import time
 from collections import deque
 
+# För att skicka till kommunikationsmodul
+import socket, struct
+SOCK = "/kommunikationsmodul/cam_offset.sock"
+
 # ========================= Tunables =========================
 FRAME_W, FRAME_H = 640, 480
 
