@@ -144,6 +144,66 @@ int main(int argc, char**argv){
         }
     });
 
+    //--------------------------------------Sensor test-----------------------------------
+    std::thread t_sensor([&](){
+    std::string buffer;
+    uint8_t tmp[128];
+
+    while(!global_stop){
+        if(sensor_fd < 0){ 
+            std::this_thread::sleep_for(std::chrono::milliseconds(200)); 
+            continue; 
+        }
+
+        ssize_t r = ::read(sensor_fd, tmp, sizeof(tmp));   // blocking
+        if (r > 0){
+            buffer.append((char*)tmp, r);
+
+            // check for newline
+            size_t pos;
+            while ((pos = buffer.find('\n')) != std::string::npos) {
+                std::string line = buffer.substr(0, pos);
+                buffer.erase(0, pos + 1);
+
+                std::cout << "[Sensor UART] Received line: " << line << "\n";
+
+                // ---------- Existing ultrasonic sensor handling ----------
+                if (line.size() == 1){
+                    char last = line[0];
+                    g_sensor_byte.store(last, std::memory_order_relaxed);
+                    g_sensor_seen.store(true,  std::memory_order_relaxed);
+
+                    if (last == '1') {
+                        OBSTACLE_STOP = 1;
+                        request_send_mask();
+                    } else if (last == '0') {
+                        OBSTACLE_STOP = 0;
+                        request_send_mask();
+                    }
+                }
+
+                // ---------- New sensor data parsing ----------
+                else {
+                    int pl=0, pr=0, d=0, v=0;
+                    if (sscanf(line.c_str(), "PL=%d,PR=%d,D=%d,V=%d", &pl, &pr, &d, &v) == 4){
+                        g_pulses_left.store(pl, std::memory_order_relaxed);
+                        g_pulses_right.store(pr, std::memory_order_relaxed);
+                        g_distance_cm.store(d, std::memory_order_relaxed);
+                        g_speed_cm_s.store(v, std::memory_order_relaxed);
+                    }
+                }
+            }
+
+        } else if(r == 0){
+            std::this_thread::sleep_for(std::chrono::milliseconds(50)); // unplug?
+        } else {
+            if(errno==EINTR) continue;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    }
+    });
+
+/*
     std::thread t_sensor([&](){
         uint8_t tmp[128];
         while(!global_stop){
@@ -180,7 +240,7 @@ int main(int argc, char**argv){
                 std::this_thread::sleep_for(std::chrono::milliseconds(5));
             }
         }
-    });
+    });  */
 
     // --------------------------- TCP server ----------------------------------
     int srv = ::socket(AF_INET, SOCK_STREAM, 0);
