@@ -1,5 +1,5 @@
 # pip install tkinterweb==0.0.4 (valfritt)  # Tkinter ingår i vanliga Python på Windows
-# Kör: python win_client_gui.py 192.168.1.42 5000
+# Kör: python win_gui.py 192.168.1.42 5000
 
 import socket, threading, sys, tkinter as tk 
 from tkinter import ttk  #tkinter python gui bibliotek, ttk = themed tkinter
