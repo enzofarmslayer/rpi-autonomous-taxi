@@ -25,6 +25,15 @@ void SensorReader::run() {
             st_.sensor_seen.store(true);
             st_.sensor_byte.store(last);
 
+            
+            // Hall sensor test
+            std::string s(reinterpret_cast<char*>(buf.data()), r);
+            if (s[0] == 'D' && s[1] == '=') {
+                int distance = std::stoi(s.substr(2));
+                std::cout << "Distance = " << distance << " cm" << std::endl;
+            
+}
+
             // Edge-trigger: only act if it actually changed
             if (!have_prev || last != prev) {
                 prev = last; 
