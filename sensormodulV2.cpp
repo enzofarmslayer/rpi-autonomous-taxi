@@ -3,7 +3,7 @@
  * sensormodul.cpp
  *
  * Created: 2025-11-06 11:14:19
- * Author : tobul865
+ * Author : tobul865, oskna605
  */ 
 
 #define F_CPU 16000000UL
@@ -11,12 +11,13 @@
 #include <avr/interrupt.h>
 #include <stdint.h>
 #include <util/delay.h>
+#include <stdio.h>
 
 //---------------------------------------------------------------------------------------------------HALL SENSOR---------------------------------------------------------------------------------------------------
 #define PULSES_PER_ROTATION 10 
-#define WHEEL_DIAMETER_MM 95.0    
+#define WHEEL_DIAMETER_MM 83.0    
 #define WHEEL_CIRCUMFERENCE_MM (WHEEL_DIAMETER_MM * 3.14159)
-#define WHEELBASE_MM 200.0  // Distance between left and right wheel, needed ??
+#define WHEELBASE_MM 200.0 
 
 // Pin definitions
 #define HALL_LEFT_PIN PD2           // INT0
@@ -38,10 +39,14 @@ static void hall_left_init(void) {
 	PORTD |= (1 << PORTD2);
 	
 	// Configure INT0 to trigger on RISING edge
-	EICRA |= (1 << ISC01) | (1 << ISC00);
+	//EICRA |= (1 << ISC01) | (1 << ISC00);
+	
+	// Configure INT0 to trigger on FALLING edge
+	EICRA |= (1 << ISC01);
+	EICRA &= ~(1 << ISC00);
+	
 	
 	EIFR |= (1 << INTF0);
-	
 	EIMSK |= (1 << INT0);
 }
 
@@ -52,15 +57,38 @@ static void hall_right_init(void) {
 	PORTD |= (1 << PORTD3);
 	
 	// Configure INT1 to trigger on RISING edge
-	EICRA |= (1 << ISC11) | (1 << ISC10);
+	//EICRA |= (1 << ISC11) | (1 << ISC10);
+	
+	// Configure INT1 to trigger on FALLING edge
+	EICRA |= (1 << ISC11);
+	EICRA &= ~(1 << ISC10);
 	
 	EIFR |= (1 << INTF1);
-	
 	EIMSK |= (1 << INT1);
 }
 
-ISR(INT0_vect){pulses_left++;}  // Left wheel pulse
-ISR(INT1_vect){pulses_right++;} // Right wheel pulse
+// ISR(INT0_vect){pulses_left++;}  // Left wheel pulse
+// ISR(INT1_vect){pulses_right++;} // Right wheel pulse
+
+
+volatile uint32_t last_left_ms = 0;
+volatile uint32_t last_right_ms = 0;
+#define DEBOUNCE_MS 1  // 1 ms debounce
+	
+ISR(INT0_vect) {
+	if ((milliseconds - last_left_ms) >= DEBOUNCE_MS) {
+		pulses_left++;
+		last_left_ms = milliseconds;
+	}
+}
+
+ISR(INT1_vect) {
+	if ((milliseconds - last_right_ms) >= DEBOUNCE_MS) {
+		pulses_right++;
+		last_right_ms = milliseconds;
+	}
+}
+		
 
 // Timer0 setup for 1ms tick
 void timer0_init(void) {
@@ -162,16 +190,6 @@ void reset_odometry(void) {
 	sei();
 }
 
-// Distance in meters
-float get_distance_meters(void) {
-	return calculate_average_distance_mm() / 1000.0;
-}
-
-// Speed in meters per second
-float get_speed_m_s(Odometry* odom) {
-	return odom->average_speed_mm_s / 1000.0;
-}
-
 
 //---------------------------------------------------------------------------------------------ULTRASONIC SENSOR----------------------------------------------------------------------------------------------------
 
@@ -244,20 +262,24 @@ int main(void)
 	uint8_t has_sent_obstacle = 0;
 	
 	// Hall sensors
-	hall_right_init();
-	hall_left_init();
+	
+	
 	timer0_init();
-	sei();
+	hall_left_init();
+	hall_right_init();
+	
 	Odometry odom = {0};
 	reset_odometry();
+	sei();
 	
 	while (1)
 	{	
 		// Hall sensor
-		_delay_ms(50);
+		_delay_ms(10);
 		update_odometry(&odom);
 
 		// Hall sensor testing 
+		/*
 		uint32_t dist_mm = (uint32_t)(odom.average_distance_mm + 0.5); 
 		uint32_t speed_mm_s = (uint32_t)(odom.average_speed_mm_s + 0.5);
 
@@ -268,19 +290,21 @@ int main(void)
 				dist_mm,
 				speed_mm_s); 
 		for (char *p = buf; *p; p++) uart_send_char(*p); 
+		*/
 		
-		/*
 		// Send odometry data 
-		int distance_cm = (int)((odom.average_distance_mm / 10.0) + 0.5); // mm → cm 
-		int speed_cm_s = (int)((odom.average_speed_mm_s * 100.0) + 0.5); // m/s → cm/s * 100 
+		int distance_cm = (int)((odom.average_distance_mm / 10.0) + 0.5); // convert mm to cm
+		int speed_cm_s = (int)((odom.average_speed_mm_s / 10.0) + 0.5);   // convert mm/s to cm/s
 
 		char buf[64]; 
-		sprintf(buf, "D=%d,V=%d,R=%.0f\n",
+		sprintf(buf, "PL=%d,PR=%d,D=%d,V=%d\n",
+				odom.left_pulses,
+				odom.right_pulses,
 				distance_cm,
-				speed_cm_s,
-				odom.rotation_deg); // rotation in degrees
+				speed_cm_s);
+
 		for (char *p = buf; *p; p++) uart_send_char(*p);
-		*/
+		
 		
 		// Ultrasonic sensor
 		echo_done = 0;
