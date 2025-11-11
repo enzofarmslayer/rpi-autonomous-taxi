@@ -62,6 +62,12 @@ static void set_nodelay(int fd){
 // --- Latest-sensor-byte only --- 
 std::atomic<uint8_t> g_sensor_byte{0};     // latest byte seen from sensor UART
 std::atomic<bool>    g_sensor_seen{false}; // have we received anything yet?
+// Motor/sensor data
+std::atomic<int> g_pulses_left{0};
+std::atomic<int> g_pulses_right{0};
+std::atomic<int> g_distance_cm{0};
+std::atomic<int> g_speed_cm_s{0};
+
 
 int main(int argc, char**argv){
     std::atomic<uint8_t> current_mask{0};  // bitmask to styr AVR
