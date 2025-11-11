@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include "servo_test.h"
 #include "servo.h"
+#include "servo_test.h"
 
 #define TEST
 

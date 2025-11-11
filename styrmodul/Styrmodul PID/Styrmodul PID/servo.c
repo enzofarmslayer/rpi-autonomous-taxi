@@ -2,6 +2,8 @@
 #include <stdbool.h>
 #define F_CPU 16000000UL
 
+volatile uint8_t g_last_out = 0;
+
 uint16_t TURN_LEFT = 2000;
 uint16_t TURN_RIGHT = 4000;
 uint16_t TURN_NEUTRAL = 3000;
@@ -18,7 +20,7 @@ void servo_init(void) {
 	ICR1 = 39999; 	 // Set PWM period (50 Hz)
 	
 	OCR1B = TURN_NEUTRAL;
-	DDRD |= (1 << PD4_TRN);
+	DDRD |= (1 << PD4);
 
 	TCCR1B |= (1 << CS11); // Prescaler = 8
 }
@@ -50,14 +52,14 @@ void servo_pid(int8_t error_angle) {
 
 void clock_init(){
 	// Timer0 CTC, prescaler 64 ? 16 MHz/64 = 250 kHz ? 1 ms = 250 counts ? OCR0=249
-	TCCR0 = (1 << WGM01);        // CTC mode
-	OCR0  = 249;                 // 1 ms vid 16 MHz & /64
-	TIMSK |= (1 << OCIE0);       // enable compare match interrupt
-	TCCR0 |= (1 << CS01) | (1 << CS00); // prescaler 64
+	TCCR0A = (1 << WGM01);        // CTC mode
+	OCR0A  = 249;                 // 1 ms vid 16 MHz & /64
+	TIMSK0 |= (1 << OCIE0A);       // enable compare match interrupt
+	TCCR0B |= (1 << CS01) | (1 << CS00); // prescaler 64
 }
 
 
-ISR(TIMER0_COMP_vect) { _ms++; }
+ISR(TIMER0_COMPA_vect) { _ms++; }
 
 uint32_t millis(void) {
 	uint32_t m;

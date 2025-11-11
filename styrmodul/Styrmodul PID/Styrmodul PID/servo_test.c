@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "servo.h"
+#define F_CPU 16000000UL
 
 // We reuse your clock/timer system
 extern uint32_t millis(void);
