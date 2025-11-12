@@ -8,6 +8,7 @@
 #include <cstring>
 #include "shared_state.hpp"
 #include "log.hpp"
+#include <functional> 
 
 class CamOffsetRx {
 public:
@@ -48,6 +49,8 @@ private:
                 st_.offset_angle.store(val7, std::memory_order_relaxed);
                 st_.offset_angle_needs_update.store(true, std::memory_order_relaxed);
                //LOG_INFO("Mottog cam angle (7bit): " << int(val7));
+
+               if (on_offset_cb_) on_offset_cb_();
             }
         }
         // (ingen clean shutdown här; processen avslutar ändå och /tmp-socket försvinner)

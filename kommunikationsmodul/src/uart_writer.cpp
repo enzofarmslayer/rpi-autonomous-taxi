@@ -62,7 +62,7 @@ void UartWriter::run() {
                 }
             }
         }
-
+/*
         if (styr_) {
             uint8_t out;
             uint8_t current = st_.desired_mask.load();
@@ -77,6 +77,7 @@ void UartWriter::run() {
             if (wr != 1) perror("UART write");
             tcdrain(styr_.get());
         }
+            */
 
         lk.lock();
     }
