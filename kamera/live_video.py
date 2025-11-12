@@ -3,6 +3,8 @@ import cv2
 import numpy as np
 import time
 from collections import deque
+
+# -----Global variables and buffers------
 left_x_history = deque(maxlen=5)
 right_x_history = deque(maxlen = 5)
 offset_history = deque(maxlen = 10)
@@ -13,18 +15,26 @@ ALPHA = 0.25 # säng mer stabil, höj mer responsiv
 
 COLOR_DISPLAY = False # Ändra mellan gråvit bild och färg
 
-picam2 = Picamera2() 										# startar kameran
+# ----------Camera Initialization --------
+picam2 = Picamera2() # startar kameran
 
 config = picam2.create_preview_configuration(main={"format": "RGB888", "size": (640,480)})
 picam2.configure(config)
 picam2.start() 	
 
+# -------- Function Definitions ---------
 def capture_frame():
+	""" 
+	Captures frame from camera and converts to BGR format
+	"""
 	frame = picam2.capture_array()								
 	frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 	return frame
 
 def preprocess_frame(frame):
+	"""
+	Converts frame to greyscale, applies CLAHE and GaussianBlur
+	"""
 	grayFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 	clahe = cv2.createCLAHE(clipLimit=1.2, tileGridSize=(8, 8))
 	grayFrame = clahe.apply(grayFrame)
