@@ -11,9 +11,11 @@ public:
     void start();
     void stop();
     void request_send_now();
+    void notify_new_offset();
 
 private:
     void run();
+    void update_offset_angle(uint8_t new_offset);
 
     Fd& styr_;
     SharedState& st_;
@@ -22,4 +24,5 @@ private:
     std::mutex mx_;
     bool dirty_ = false;
     bool stop_  = false;
+    uint8_t last_offset_angle_ = 0;
 };
