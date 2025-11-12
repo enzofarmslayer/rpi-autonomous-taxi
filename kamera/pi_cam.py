@@ -7,10 +7,7 @@ import numpy as np
 import math
 import time
 from collections import deque
-
-# För att skicka till kommunikationsmodul
-import socket, struct
-SOCK = "/kommunikationsmodul/cam_offset.sock"
+import socket, os
 
 # ========================= Tunables =========================
 FRAME_W, FRAME_H = 640, 480
@@ -57,6 +54,14 @@ DST = np.float32([
     [WARP_W*0.15, WARP_H*0.05],
 ])
 
+# --- SOCKET: telemetry settings (UDP broadcast by default)
+# --- FILE OUTPUT: where to write the 7-bit heading
+SOCKET_PATH = "/tmp/cam_offset.sock"  # change path if needed
+HEADING_MIN_DEG = -45.0
+HEADING_MAX_DEG = 45.0
+
+_udps = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+
 # ========================= State / histories =========================
 left_x_history  = deque(maxlen=5)
 right_x_history = deque(maxlen=5)
@@ -84,6 +89,13 @@ def preprocess_frame(frame):
     grayFrame = clahe.apply(grayFrame)
     grayFrame = cv2.GaussianBlur(grayFrame, (5, 5), 0)
     return grayFrame
+
+
+def quantize_heading_deg_to_7bit(heading_deg: float, lo=-45.0, hi=45.0) -> int:
+    clamped = max(lo, min(hi, heading_deg))
+    norm = (clamped - lo) / (hi - lo)
+    return int(round(norm * 127)) & 0x7F  # 0..127
+
 
 # ========================= Helpers =========================
 def threshold_black(gray_roi):
@@ -255,6 +267,17 @@ def main():
             if lateral_norm is not None:
                 lateral_sm = robust_smooth(lateral_hist, lateral_norm, ALPHA, MEDIAN_WINDOW)
         # else: coast on last good (do not update)
+
+        if heading_sm is not None:
+            q = quantize_heading_deg_to_7bit(heading_sm)
+            try:
+                _udps.sendto(bytes([q]), SOCKET_PATH)  # 1 byte to local socket file
+            except FileNotFoundError:
+                # Receiver not up yet; ignore and keep running
+                pass
+            except Exception:
+                pass  # swallow transient errors to avoid stalling vision loop
+
 
         # ========================= Visualization =========================
         if COLOR_DISPLAY:
