@@ -91,7 +91,7 @@ int main(void)
 	clock_init();       // startar Timer0 1 ms-tick (för ms_elapsed, millis)
 	servo_init();
 	sei();              // aktiverar globala avbrott
-	int8_t data_signed;
+	int8_t data_signed = 50;
 	
 	while (1) {
 		/*
@@ -108,8 +108,6 @@ int main(void)
 		if(data){
 			
 			data_signed = (int8_t)data - 50;
-			
-			continue;
 		}
 		servo_tick_run(data_signed);
 		
