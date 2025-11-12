@@ -6,6 +6,14 @@ import time
 import tkinter as tk
 from tkinter import ttk
 
+# === [NYTT] För video-dekod & protokoll ===
+import struct
+import io
+try:
+    from PIL import Image, ImageTk
+except ImportError:
+    raise SystemExit("Installera Pillow först:  pip install pillow")
+
 # === Network / Connection ===
 
 PI_IP = sys.argv[1] if len(sys.argv) > 1 else "192.168.1.42"
@@ -14,6 +22,18 @@ PORT  = int(sys.argv[2]) if len(sys.argv) > 2 else 5000
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 s.connect((PI_IP, PORT))
+
+# [NYTT] Video-port + socket (andra TCP-anslutningen)
+VIDEO_PORT = int(sys.argv[3]) if len(sys.argv) > 3 else 6000
+vsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+vsock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+try:
+    vsock.connect((PI_IP, VIDEO_PORT))
+    video_connected = True
+except OSError as e:
+    print(f"[Video] kunde inte ansluta till {PI_IP}:{VIDEO_PORT}: {e}")
+    video_connected = False
+    vsock = None
 
 # === Root Window Setup ===
 
@@ -320,17 +340,23 @@ root.bind_all("<Button-1>", unfocus, add="+")
 
 # === Camera Card ===
 camera_card = create_card(side_frame, "Camera")
-tk.Label(
+
+# [NYTT] Bildyta för kameraflöde
+cam_label = tk.Label(
     camera_card,
-    text="[Camera feed not available in this mode]",
     bg=card_bg,
     fg=accent,
-    font=("Consolas", 10),
-    height=10,
     width=35,
+    height=10,
     anchor="center",
     justify="center",
-).pack(padx=10, pady=10)
+)
+cam_label.pack(padx=10, pady=10)
+_cam_img_ref = None  # behåll referens så bilden inte garbage-collectas
+CAM_W, CAM_H = 480, 320  # visningsstorlek
+
+if not video_connected:
+    cam_label.config(text="[No camera feed]", fg=accent)
 
 # === Keyboard Controls ===
 pressed_keys = set()
@@ -435,14 +461,65 @@ def rx_telemetry():
             append_log(f"Telemetry error: {e}")
             break
 
-# Start telemetry thread
+# === [NYTT] Video-mottagning ===
+def recv_exact(sock, n):
+    buf = b""
+    while len(buf) < n:
+        chunk = sock.recv(n - len(buf))
+        if not chunk:
+            return None
+        buf += chunk
+    return buf
+
+def update_cam_image(pil_img):
+    global _cam_img_ref
+    pil_img = pil_img.resize((CAM_W, CAM_H))
+    tk_img = ImageTk.PhotoImage(pil_img)
+    _cam_img_ref = tk_img
+    cam_label.config(image=tk_img, text="")
+
+def rx_video():
+    if not video_connected or vsock is None:
+        return
+    try:
+        while True:
+            hdr = recv_exact(vsock, 4)
+            if not hdr:
+                append_log("Video: ström avslutad")
+                break
+            (length,) = struct.unpack("!I", hdr)
+            data = recv_exact(vsock, length)
+            if not data:
+                append_log("Video: ström avslutad (payload)")
+                break
+            try:
+                img = Image.open(io.BytesIO(data)).convert("RGB")
+            except Exception:
+                continue
+            root.after(0, update_cam_image, img)
+    except OSError as e:
+        append_log(f"Video error: {e}")
+    finally:
+        try:
+            if vsock:
+                vsock.close()
+        except Exception:
+            pass
+
+# Start telemetry + video threads
 threading.Thread(target=rx_telemetry, daemon=True).start()
+threading.Thread(target=rx_video, daemon=True).start()
 
 # === Clean shutdown ===
 def on_close():
     try:
         send("quit")
         s.close()
+    except Exception:
+        pass
+    try:
+        if vsock:
+            vsock.close()
     except Exception:
         pass
     root.destroy()
