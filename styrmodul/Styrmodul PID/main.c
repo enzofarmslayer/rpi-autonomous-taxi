@@ -11,9 +11,7 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <stdint.h>
-#include "servo_test.h"
 #include "servo.h"
-#include "servo_test.h"
 
 #define TEST
 
@@ -80,12 +78,8 @@ int main(void)
 	//pwn_init();
 	clock_init();       // startar Timer0 1 ms-tick (för ms_elapsed, millis)
     sei();              // aktiverar globala avbrott
-    servo_test_init();
 	
 	while (1) {
-		#ifdef TEST
-			servo_test_task();  
-		#endif
+		
 	}
-	//test
 }

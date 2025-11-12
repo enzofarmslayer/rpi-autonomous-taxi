@@ -6,5 +6,3 @@ main.c
 
 servo.c
 
-servo_test.c
-
