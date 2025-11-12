@@ -12,4 +12,5 @@ struct SharedState {
     std::atomic<bool>    global_stop{false};
     std::atomic<uint8_t>     offset_angle{0};   // calibration offset for steering angle TCP
     //std::atomic<uint8_t>     offset_from_center{0};  // calibration offset for lateral position TCP
+    std::atomic<bool>     offset_angle_needs_update{false};
 };

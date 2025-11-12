@@ -53,5 +53,5 @@ private:
 
     SharedState& st_;
     std::thread  thr_;
-    std::function<void()> on_offset_cb_;
+    //std::function<void()> on_offset_cb_;
 };
