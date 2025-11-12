@@ -40,6 +40,8 @@ private:
             if (n == 1) {
                 // MSB reserverad -> behåll endast 7 bitar
                 uint8_t val7 = angle & 0x7F;
+
+                //int8_t singed_val = val7 - 45;
                 st_.offset_angle.store(val7, std::memory_order_relaxed);
                 LOG_INFO("Mottog cam angle (7bit): " << int(val7));
             }
