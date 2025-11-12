@@ -46,6 +46,8 @@ void UartWriter::run() {
         lk.unlock();
 
         if (st_.offset_angle_needs_update.load(std::memory_order_relaxed)) {
+            LOG_INFO("första if");            
+
             uint8_t new_offset = st_.offset_angle.load(std::memory_order_relaxed);
             st_.offset_angle_needs_update.store(false, std::memory_order_relaxed);
 
