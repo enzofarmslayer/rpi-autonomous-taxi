@@ -45,7 +45,7 @@ private:
 
                 st_.offset_angle.store(val7, std::memory_order_relaxed);
                 st_.offset_angle_needs_update.store(true, std::memory_order_relaxed);
-                LOG_INFO("Mottog cam angle (7bit): " << int(val7));
+               //LOG_INFO("Mottog cam angle (7bit): " << int(val7));
             }
         }
         // (ingen clean shutdown här; processen avslutar ändå och /tmp-socket försvinner)
