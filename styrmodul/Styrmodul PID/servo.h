@@ -4,12 +4,12 @@
 #include <stdbool.h>
 
 
-#define PID_P 2
-#define PID_I 0.1
-#define PID_D 0
+#define PID_P 3.0
+#define PID_I 0.05
+#define PID_D 0.0
 
 void servo_init(void);
-void set_servo_value(uint8_t percent);
+void set_servo_value(uint16_t percent);
 void servo_pid(int8_t error_angle);
 
 void clock_init(void);          // startar 1ms-tick

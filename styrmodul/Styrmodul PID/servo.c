@@ -25,7 +25,7 @@ void servo_init(void) {
 	TCCR1B |= (1 << CS11); // Prescaler = 8
 }
 
-void set_servo_value(uint8_t percent) {
+void set_servo_value(uint16_t percent) {
 	if (percent < 100) {
 		uint16_t turn_value = TURN_LEFT + 20 * percent;
 		OCR1B = turn_value;
@@ -37,19 +37,34 @@ void set_servo_value(uint8_t percent) {
 }
 
 void servo_pid(int8_t error_angle) {
-	static int32_t accumulated_error = 0;
-	static int8_t previous = 0;
+	static float i_term = 0.0f;
+	static int8_t prev_error = 0;
 
-	int16_t d_error = error_angle - previous;
-	accumulated_error += error_angle;
+	int16_t d_error = (int16_t)error_angle - (int16_t)prev_error;
+	
+	const float I_MIN = -1000.0f;
+	const float I_MAX =  1000.0f;
+	i_term += (float)error_angle;
+	if (i_term > I_MAX) i_term = I_MAX;
+	if (i_term < I_MIN) i_term = I_MIN;
 
-	int32_t servo_val = 50 + PID_P * error_angle + PID_D * d_error + PID_I * accumulated_error;
-	if (servo_val > 100) servo_val = 100;
-	if (servo_val < 0) servo_val = 0;
-	set_servo_value((uint8_t)servo_val);
+	// PID sum
+	float u = 50.0f
+	+ PID_P * (float)error_angle
+	+ PID_D * (float)d_error
+	+ PID_I * i_term;
 
-	previous = error_angle;
+	// Output clamp (10..90 in your units)
+	int32_t u_int = (int32_t)u;
+	if (u_int > 90) u_int = 90;
+	if (u_int < 10) u_int = 10;
+
+	// Send the *clamped* value
+	set_servo_value((uint8_t)u_int);
+
+	prev_error = error_angle;
 }
+
 
 
 void clock_init(){

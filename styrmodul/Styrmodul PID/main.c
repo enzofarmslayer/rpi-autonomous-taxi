@@ -13,8 +13,6 @@
 #include <stdint.h>
 #include "servo.h"
 
-#define TEST
-
 #define PD2_DIR PD2
 #define PD3_BRAKE PD3
 #define PD6_PWM PD6
@@ -75,11 +73,21 @@ void stop() {
 
 int main(void)
 {
-	//pwn_init();
+	pwn_init();
 	clock_init();       // startar Timer0 1 ms-tick (för ms_elapsed, millis)
-    sei();              // aktiverar globala avbrott
+    uart_init();
+	servo_init();
+	sei();              // aktiverar globala avbrott
 	
 	while (1) {
+		/*
+		uint8_t data = uart_reciever();
+		if(data & 0x80){
+			continue;
+		}*/
+		uint8_t data = 48;
+		int8_t data_signed = (int8_t)data - 50;
+		servo_tick_run(data_signed);
 		
 	}
 }
