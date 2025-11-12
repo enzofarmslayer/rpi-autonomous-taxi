@@ -346,8 +346,8 @@ cam_label = tk.Label(
     camera_card,
     bg=card_bg,
     fg=accent,
-    width=35,
-    height=10,
+    width=480,
+    height=360,
     anchor="center",
     justify="center",
 )
