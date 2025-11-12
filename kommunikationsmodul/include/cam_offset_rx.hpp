@@ -11,7 +11,9 @@
 
 class CamOffsetRx {
 public:
-    explicit CamOffsetRx(SharedState& st) : st_(st) {}
+    explicit CamOffsetRx(SharedState& st, std::function<void()> on_offset_cb = {})
+    : st_(st), on_offset_cb_(std::move(on_offset_cb)) {}
+    //explicit CamOffsetRx(SharedState& st) : st_(st) {}
     void start() { thr_ = std::thread(&CamOffsetRx::run, this); }
 
 private:
