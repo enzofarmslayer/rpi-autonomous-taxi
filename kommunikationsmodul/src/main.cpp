@@ -42,10 +42,8 @@ int main(int argc, char** argv) {
     SensorReader sens(sensor, st, uartw);
     sens.start();
 
-    CamOffsetRx cam_rx(st,[&]{
-        uartw.notify_new_offset();   // <-- väcker writer-tråden när offset kommit
-    }
-    );
+CamOffsetRx cam_rx(st,[&]{uartw.notify_new_offset();});
+     // <-- väcker writer-tråden när offset kommit
     cam_rx.start();
 
     int srv = make_server(cfg.host, cfg.port);
