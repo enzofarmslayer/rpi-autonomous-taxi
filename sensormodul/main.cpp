@@ -40,7 +40,7 @@ int main(void)
 	while (1)
 	{	
 		// Hall sensor
-		//_delay_ms(10);
+		_delay_ms(1000);
 		update_odometry(&odom);
 
 		// Hall sensor testing 
@@ -60,39 +60,43 @@ int main(void)
 		// Send odometry data, beginning with just distance travelled 
 		int distance_cm = (int)((odom.average_distance_mm / 10.0) + 0.5); // convert mm to cm
 		int speed_cm_s = (int)((odom.average_speed_mm_s / 10.0) + 0.5);   // convert mm/s to cm/s
-
-		char buf[64]; 
-		sprintf(buf, "D=%d\n", (int)distance_cm);
-		for (char *p = buf; *p; p++)
-			uart_send_char(*p);
+	
+		volatile int puls = odom.right_pulses;
+		//uart_send_char((char)puls);
+		
+		volatile int distance = (int)(puls *1.25);
+		
+		if (distance >= 100) {
+			uart_send_char('1');
+		}
 		
 		// Ultrasonic sensor
-		echo_done = 0;
-		start_sens();
-		
-		uint16_t timeout = 60000;
-		while(!echo_done && timeout--){}
-		
-		if (echo_done) {
-			uint16_t start = icr_start;
-			uint16_t end = icr_end;
-			
-			uint16_t length = (end >= start) ? (end - start) : (end + 0x10000 - start);
-			
-			if (length < 2500) {
-				obstacle_present = 1;
-				} else {
-				obstacle_present = 0;
-			}
-		}
-		if (obstacle_present && !has_sent_obstacle) {
-			uart_send_char('1');
-			has_sent_obstacle = 1;
-			} else if(!obstacle_present && has_sent_obstacle) {
-			uart_send_char('0');
-			has_sent_obstacle = 0;
-		}
-		_delay_ms(20);
+		//echo_done = 0;
+		//start_sens();
+		//
+		//uint16_t timeout = 60000;
+		//while(!echo_done && timeout--){}
+		//
+		//if (echo_done) {
+			//uint16_t start = icr_start;
+			//uint16_t end = icr_end;
+			//
+			//uint16_t length = (end >= start) ? (end - start) : (end + 0x10000 - start);
+			//
+			//if (length < 2500) {
+				//obstacle_present = 1;
+				//} else {
+				//obstacle_present = 0;
+			//}
+		//}
+		//if (obstacle_present && !has_sent_obstacle) {
+			//uart_send_char('1');
+			//has_sent_obstacle = 1;
+			//} else if(!obstacle_present && has_sent_obstacle) {
+			//uart_send_char('0');
+			//has_sent_obstacle = 0;
+		//}
+		//_delay_ms(20);
 	}
 }
 
