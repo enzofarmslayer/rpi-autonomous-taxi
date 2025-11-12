@@ -8,9 +8,13 @@ import math
 import time
 from collections import deque
 import socket, os
+import cv2
+from cameraview import FrameTCPStreamer
 
 # ========================= Tunables =========================
 FRAME_W, FRAME_H = 640, 480
+
+JPEG_QUALITY = 60
 
 # Look at less of the image: only the closest slice + crop sides
 ROI_TOP = 0.58
@@ -77,6 +81,9 @@ picam2 = Picamera2()
 config = picam2.create_preview_configuration(main={"format": "RGB888", "size": (FRAME_W, FRAME_H)})
 picam2.configure(config)
 picam2.start()
+
+streamer = FrameTCPStreamer(host="0.0.0.0", port=5000)
+streamer.start()
 
 def capture_frame():
     frame = picam2.capture_array()
@@ -283,7 +290,7 @@ def main():
         if COLOR_DISPLAY:
             vis = frame.copy()
         else:
-            vis = cv2.cvtColor(work, cv2.COLOR_GRAY2BGR)
+            vis = cv2.cvtColor(work, cv2.COLOR_GRAY2BGR)       
 
         # Draw fitted points/lines in the working space
         h, w = work.shape
@@ -322,6 +329,11 @@ def main():
                           (0, 255, 255), 2)
             cv2.imshow("Camera with ROI", roi_frame)
 
+        if streamer.has_client():
+            ok, jpg = cv2.imencode(".jpg", vis, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
+            if ok:
+                streamer.push_jpeg(jpg.tobytes()) 
+
         # ----- Key handling -----
         key = cv2.waitKey(1) & 0xFF
         if key in (27, ord('q')):
@@ -341,6 +353,10 @@ if __name__ == "__main__":
     try:
         main()
     finally:
+        try:
+            streamer.stop()
+        except Exception:
+            pass
         try:
             picam2.stop()
         except Exception:
