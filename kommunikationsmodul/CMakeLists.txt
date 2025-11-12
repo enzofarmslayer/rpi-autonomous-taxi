@@ -13,6 +13,7 @@ add_executable(kommunikationsmodul
         src/uart_writer.cpp
         src/tcp_session.cpp
         src/sensor_reader.cpp
+        src/styr_reader.cpp
         )
 
 target_link_libraries(kommunikationsmodul

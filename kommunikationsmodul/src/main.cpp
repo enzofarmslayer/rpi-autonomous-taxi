@@ -6,6 +6,7 @@
 #include "sensor_reader.hpp"
 #include "tcp_session.hpp"
 #include "cam_offset_rx.hpp"
+#include "styr_reader.hpp"
 
 #include <arpa/inet.h>
 #include <cerrno>
@@ -42,7 +43,10 @@ int main(int argc, char** argv) {
     SensorReader sens(sensor, st, uartw);
     sens.start();
 
-CamOffsetRx cam_rx(st,[&]{uartw.notify_new_offset();});
+    StyrReader sty(styr, st, uartw);
+    sty.start(); 
+
+    CamOffsetRx cam_rx(st,[&]{uartw.notify_new_offset();});
      // <-- väcker writer-tråden när offset kommit
     cam_rx.start();
 
@@ -50,6 +54,7 @@ CamOffsetRx cam_rx(st,[&]{uartw.notify_new_offset();});
     if (srv < 0) {
         st.global_stop.store(true);
         sens.join();
+        sty.join();
         uartw.stop();
         return 1;
     }
