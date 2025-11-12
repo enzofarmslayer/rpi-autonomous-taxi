@@ -25,6 +25,28 @@ uint8_t MAX_PERCENT = 128;
 void clock_init(void);
 
 
+// -------------------- UART functions --------------------
+void uart_init(unsigned long baud) {
+	UCSR0A |= (1 << U2X0); // Double speed
+	uint16_t ubrr = (F_CPU / 8 / baud) - 1;
+	UBRR0H = (uint8_t)(ubrr >> 8);
+	UBRR0L = (uint8_t)ubrr;
+	UCSR0B = (1 << RXEN0) | (1 << TXEN0);             // Enable transmitter
+	UCSR0C |= (1 << UCSZ01) | (1 << UCSZ00); // 8-bit, no parity, 1 stop
+}
+
+void uart_send_char(uint8_t c) {
+	while (!(UCSR0A & (1 << UDRE0))); // Wait for empty buffer
+	UDR0 = c;
+}
+
+// YOLO FUNCTION
+void uart_sender(uint8_t descriptor, uint8_t data) {
+	uart_send_char(descriptor);
+	uart_send_char(data);
+}
+
+
 void pwn_init(void) {
 	// Fast PWM on Timer2, non-inverting mode on OC2B
 	TCCR2A = (1 << WGM21) | (1 << WGM20) | (1 << COM2B1);
@@ -52,15 +74,6 @@ void set_gas_percent(uint8_t percent, uint8_t dir) {
 	OCR2B = (uint16_t)percent*MAX_PERCENT/100;
 }
 
-void uart_init(void) {
-	UCSR0A = (1 << U2X0);
-	UBRR0H = (uint8_t)(MYUBRR >> 8);
-	UBRR0L = (uint8_t)MYUBRR;
-	
-    UCSR0B = (1 << RXEN0) | (1 << TXEN0);
-	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
-}
-
 uint8_t uart_reciever() {
 	while(!(UCSR0A & (1 << RXC0)));
 	return UDR0;
@@ -73,20 +86,31 @@ void stop() {
 
 int main(void)
 {
+	uart_init(115200);
 	pwn_init();
-	clock_init();       // startar Timer0 1 ms-tick (för ms_elapsed, millis)
-    uart_init();
+	clock_init();       // startar Timer0 1 ms-tick (fÃ¶r ms_elapsed, millis)
 	servo_init();
 	sei();              // aktiverar globala avbrott
+	int8_t data_signed;
 	
 	while (1) {
 		/*
+		_delay_ms(1000);
+		uint8_t test1 = 'd';
+		uint8_t test2 = 67;
+		uart_sender(test1, test2);
+		_delay_ms(1000);
+		*/
+		
+		
 		uint8_t data = uart_reciever();
-		if(data & 0x80){
+		
+		if(data){
+			
+			data_signed = (int8_t)data - 50;
+			
 			continue;
-		}*/
-		uint8_t data = 48;
-		int8_t data_signed = (int8_t)data - 50;
+		}
 		servo_tick_run(data_signed);
 		
 	}
