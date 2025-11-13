@@ -19,7 +19,7 @@ JPEG_QUALITY = 60
 # Look at less of the image: only the closest slice + crop sides
 ROI_TOP = 0.58
 ROI_BOTTOM = 0.15 
-HORIZ_MARGIN_FRACTION = 0.05     # cut 10% from both left/right inside ROI
+HORIZ_MARGIN_FRACTION = 0.12     # cut 10% from both left/right inside ROI
 
 # Thresholding / morphology
 ADAPTIVE = True                  # True=adaptive (robust), False=Otsu (faster)
@@ -75,6 +75,7 @@ lane_width_hist = deque(maxlen=15)   # for outlier rejection
 # Smoothed outputs
 heading_sm = None
 lateral_sm = None
+HEADING_LATERAL_COUPLING = 0.0
 
 # ========================= Camera (yours, unchanged) =========================
 picam2 = Picamera2()
@@ -82,7 +83,7 @@ config = picam2.create_preview_configuration(main={"format": "RGB888", "size": (
 picam2.configure(config)
 picam2.start()
 
-streamer = FrameTCPStreamer(host="0.0.0.0", port=6000)
+streamer = FrameTCPStreamer(host="0.0.0.0", port=5000)
 streamer.start()
 
 def capture_frame():
@@ -275,8 +276,12 @@ def main():
                 lateral_sm = robust_smooth(lateral_hist, lateral_norm, ALPHA, MEDIAN_WINDOW)
         # else: coast on last good (do not update)
 
-        if heading_sm is not None:
-            q = quantize_heading_deg_to_7bit(heading_sm)
+        heading_corr = heading_sm
+        if (heading_sm is not None) and (lateral_sm is not None):
+            heading_corr = heading_sm - HEADING_LATERAL_COUPLING * lateral_sm
+
+        if heading_corr is not None:
+            q = quantize_heading_deg_to_7bit(heading_corr)
             try:
                 _udps.sendto(bytes([q]), SOCKET_PATH)  # 1 byte to local socket file
             except FileNotFoundError:
@@ -318,16 +323,16 @@ def main():
             txt = f"{status} | heading {heading_sm:+.1f} deg | lateral {lateral_sm:+.3f} lanes"
         cv2.putText(vis, txt, (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
 
-        #cv2.imshow("lane view (binary or color)", vis)
+        cv2.imshow("lane view (binary or color)", vis)
 
         # Visualize actual ROI on original frame (optional but handy)
-        # if SHOW_ROI_BOX:
-        #     roi_frame = frame.copy()
-        #     cv2.rectangle(roi_frame,
-        #                   (x_margin, y_start),
-        #                   (FRAME_W - x_margin, y_end),
-        #                   (0, 255, 255), 2)
-        #    cv2.imshow("Camera with ROI", roi_frame)
+        if SHOW_ROI_BOX:
+            roi_frame = frame.copy()
+            cv2.rectangle(roi_frame,
+                          (x_margin, y_start),
+                          (FRAME_W - x_margin, y_end),
+                          (0, 255, 255), 2)
+            cv2.imshow("Camera with ROI", roi_frame)
 
         if streamer.has_client():
             ok, jpg = cv2.imencode(".jpg", vis, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
