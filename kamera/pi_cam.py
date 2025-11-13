@@ -83,7 +83,7 @@ config = picam2.create_preview_configuration(main={"format": "RGB888", "size": (
 picam2.configure(config)
 picam2.start()
 
-streamer = FrameTCPStreamer(host="0.0.0.0", port=5000)
+streamer = FrameTCPStreamer(host="0.0.0.0", port=6000)
 streamer.start()
 
 def capture_frame():
