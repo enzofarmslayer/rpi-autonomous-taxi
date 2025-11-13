@@ -47,7 +47,7 @@ def drawPoints(img,points):
     return img
 
 
-def getHistogram(img,display=False,minVal = 0.1,region = 4):
+def getHistogram(img,display=False,minVal = 0.1,region = 1):
  
     histValues = np.sum(img, axis=0) 
 
