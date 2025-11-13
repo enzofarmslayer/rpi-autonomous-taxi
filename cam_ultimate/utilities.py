@@ -50,29 +50,31 @@ def drawPoints(img,points):
     return img
 
 
-def getHistogram(img,display=False,minVal = 0.1,region = 1):
- 
-    histValues = np.sum(img, axis=0) 
+def getHistogram(img, display=False, minVal=0.1, region=1):
 
-    maxValue = np.max(histValues)  
-    minValue = minVal*maxValue
+    histValues = np.sum(img, axis=0)
 
-    indexArray =np.where(histValues >= minValue) # ALL INDICES WITH MIN VALUE OR ABOVE
-    basePoint =  int(np.average(indexArray)) # AVERAGE ALL MAX INDICES VALUES
+    maxValue = np.max(histValues)
+    minValue = minVal * maxValue
 
+    indexArray = np.where(histValues >= minValue)
+    basePoint = int(np.average(indexArray))
 
     if display:
-        imgHist = np.zeros((img.shape[0],img.shape[1],3),np.uint8)
-        for x,intensity in enumerate(histValues):
-        # print(intensity)
-            if intensity > minValue:color=(255,0,255)
-            else: color=(0,0,255)
-            cv2.line(imgHist,(x,img.shape[0]),(x,img.shape[0]-(intensity//255//region)),color,1)
-            cv2.circle(imgHist,(basePoint,img.shape[0]),20,(0,255,255),cv2.FILLED)
-        return basePoint, imgHist
-    
-    return basePoint
+        imgHist = np.zeros((img.shape[0], img.shape[1], 3), np.uint8)
+        h = img.shape[0]
 
+        for x, intensity in enumerate(histValues):
+            color = (255, 0, 255) if intensity > minValue else (0, 0, 255)
+
+            val = int(int(intensity) / 255 / region)   # ← SÄKERT
+
+            cv2.line(imgHist, (x, h), (x, h - val), color, 1)
+
+        cv2.circle(imgHist, (basePoint, h), 20, (0, 255, 255), cv2.FILLED)
+        return basePoint, imgHist
+
+    return basePoint
 
 
 
