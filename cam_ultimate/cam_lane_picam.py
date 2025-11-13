@@ -20,7 +20,7 @@ def main():
     picam2.start()
 
     # Trackbars precis som i din gamla mp4-loop
-    initialTrackbarValues = [141, 114, 89, 208]
+    initialTrackbarValues = [92, 123, 47, 208]
     utilities.initializeTrackbars(initialTrackbarValues, wT=LANE_W, hT=LANE_H)
 
     try:
