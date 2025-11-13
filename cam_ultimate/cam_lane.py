@@ -17,17 +17,22 @@ def getLaneCurve(img):
     imgWarpPoints = utilities.drawPoints(imgCopy, points)
 
 
+    #3
+    utilities.getHistogram(imgWarp  )
+    basePoint,imgHist = utilities.getHistogram(imgWarp,display=True)
+
 
 
     cv2.imshow('Thres', imgThres)
     cv2.imshow('Warp', imgWarp)
     cv2.imshow('Warp points', imgWarpPoints)
+    cv2.imshow('Histogram', imgHist)
     return None
 
 
 if __name__ == '__main__':
     cap = cv2.VideoCapture(r"c:\Users\gitar\Desktop\TSEA29\code\cam_ultimate\vid1.mp4")
-    initialTrackbarValues = [102, 80, 20, 214]
+    initialTrackbarValues = [103, 97, 47, 203]
     utilities.initializeTrackbars(initialTrackbarValues)
     frameCounter = 0
     while True:
