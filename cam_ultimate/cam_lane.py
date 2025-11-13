@@ -28,7 +28,7 @@ def getLaneCurve(img, display = 2):
     midPoint,imgHist = utilities.getHistogram(imgWarp,display=True, minVal = 0.5, region= 4)
     curveAvergaePoint,imgHist = utilities.getHistogram(imgWarp,display=True, minVal = 0.9, region= 1)
     curveRaw = curveAvergaePoint - midPoint
-    print(curveRaw)
+    #print(curveRaw)
 
 
     #jämna ut vinkeln
@@ -93,7 +93,8 @@ if __name__ == '__main__':
 
         success, img = cap.read() # GET THE IMAGE
         img = cv2.resize(img,(480,240)) # RESIZE
-        getLaneCurve(img)
+        curve = getLaneCurve(img, display=2)
+        print(curve)
         #cv2.imshow('Vid', img)
 
         cv2.waitKey(1)
