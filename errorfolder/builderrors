@@ -1,0 +1,31 @@
+am_lane.py        __pycache__             vid1.mp4
+maxverstappen@raspberrypi:~/Desktop/code/cam_ultimate $ python3 run_cam_lane_picam.py
+python3: can't open file '/home/maxverstappen/Desktop/code/cam_ultimate/run_cam_lane_picam.py': [Errno 2] No such file or directory
+maxverstappen@raspberrypi:~/Desktop/code/cam_ultimate $ python3 cam_lane_picam.py
+[0:35:44.837969731] [2360]  INFO Camera camera_manager.cpp:326 libcamera v0.5.0+59-d83ff0a4
+[0:35:44.896204370] [2366]  WARN RPiSdn sdn.cpp:40 Using legacy SDN tuning - please consider moving SDN inside rpi.denoise
+[0:35:44.901636107] [2366]  INFO RPI vc4.cpp:447 Registered camera /base/soc/i2c0mux/i2c@1/ov5647@36 to Unicam device /dev/media2 and ISP device /dev/media0
+[0:35:44.901983761] [2366]  INFO RPI pipeline_base.cpp:1121 Using configuration file '/usr/share/libcamera/pipeline/rpi/vc4/rpi_apps.yaml'
+[0:35:44.921174580] [2360]  INFO Camera camera.cpp:1205 configuring streams: (0) 640x480-RGB888 (1) 640x480-SGBRG10_CSI2P
+[0:35:44.923288786] [2366]  INFO RPI vc4.cpp:622 Sensor: /base/soc/i2c0mux/i2c@1/ov5647@36 - Selected sensor format: 640x480-SGBRG10_1X10 - Selected unicam format: 640x480-pGAA
+[0:35:45.104938547] [2366]  INFO V4L2 v4l2_videodevice.cpp:1801 /dev/video0[15:cap]: Zero sequence expected for first frame (got 1)
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+Traceback (most recent call last):
+  File "/home/maxverstappen/Desktop/code/cam_ultimate/cam_lane_picam.py", line 45, in <module>
+    main()
+  File "/home/maxverstappen/Desktop/code/cam_ultimate/cam_lane_picam.py", line 33, in main
+    curve = getLaneCurve(img, display=2)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxverstappen/Desktop/code/cam_ultimate/cam_lane.py", line 28, in getLaneCurve
+    midPoint,imgHist = utilities.getHistogram(imgWarp,display=True, minVal = 0.5, region= 4)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxverstappen/Desktop/code/cam_ultimate/utilities.py", line 70, in getHistogram
+    cv2.line(imgHist,(x,img.shape[0]),(x,img.shape[0]-(intensity//255//region)),color,1)
+cv2.error: OpenCV(4.6.0) :-1: error: (-5:Bad argument) in function 'line'
+> Overload resolution failed:
+>  - Can't parse 'pt2'. Sequence item with index 1 has a wrong type
+>  - Can't parse 'pt2'. Sequence item with index 1 has a wrong type
