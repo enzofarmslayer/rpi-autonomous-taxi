@@ -73,10 +73,10 @@ def getLaneCurve(img, display = 2):
 
 
 
-    cv2.imshow('Thres', imgThres)
-    cv2.imshow('Warp', imgWarp)
-    cv2.imshow('Warp points', imgWarpPoints)
-    cv2.imshow('Histogram', imgHist)
+    #cv2.imshow('Thres', imgThres)
+    #cv2.imshow('Warp', imgWarp)
+    #cv2.imshow('Warp points', imgWarpPoints)
+    #cv2.imshow('Histogram', imgHist)
     return curve
 
 
@@ -94,6 +94,6 @@ if __name__ == '__main__':
         success, img = cap.read() # GET THE IMAGE
         img = cv2.resize(img,(480,240)) # RESIZE
         getLaneCurve(img)
-        cv2.imshow('Vid', img)
+        #cv2.imshow('Vid', img)
 
         cv2.waitKey(1)
