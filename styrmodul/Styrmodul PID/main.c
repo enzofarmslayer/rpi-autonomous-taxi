@@ -20,7 +20,7 @@
 #define BAUD 115200
 #define MYUBRR (F_CPU/8/BAUD - 1)
 
-uint8_t MAX_PERCENT = 128;
+uint8_t MAX_PERCENT = 255;
 
 void clock_init(void);
 
@@ -91,7 +91,7 @@ int main(void)
 	clock_init();       // startar Timer0 1 ms-tick (för ms_elapsed, millis)
 	servo_init();
 	sei();              // aktiverar globala avbrott
-	int8_t data_signed = 63;
+	int8_t data_signed = 0;
 	
 	while (1) {
 		/*
@@ -107,13 +107,16 @@ int main(void)
 		
 		if(data){
 			data_signed = (int8_t)data - 63;
-			int8_t offset = abs(data_signed);
-			if (offset > 30) {
-				set_gas_percent(0);
+			int8_t offset = data_signed > 0 ? data_signed : -data_signed;
+			if (offset < 30) {
+				set_gas_percent(0, 0);
 			} else {
-				set_gas_percent(40-(offset>>1));
+				set_gas_percent(0, 0);
 			}
+			
+			uart_sender('O', offset);
 		}
 		servo_tick_run(data_signed);
+		_delay_ms(10);
 	}
 }

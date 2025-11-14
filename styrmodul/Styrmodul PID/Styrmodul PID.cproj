@@ -20,14 +20,26 @@
     <OverrideVtor>false</OverrideVtor>
     <CacheFlash>true</CacheFlash>
     <ProgFlashFromRam>true</ProgFlashFromRam>
-    <RamSnippetAddress />
+    <RamSnippetAddress>0x20000000</RamSnippetAddress>
     <UncachedRange />
     <preserveEEPROM>true</preserveEEPROM>
-    <OverrideVtorValue />
+    <OverrideVtorValue>exception_table</OverrideVtorValue>
     <BootSegment>2</BootSegment>
     <ResetRule>0</ResetRule>
     <eraseonlaunchrule>0</eraseonlaunchrule>
     <EraseKey />
+    <avrtool>com.atmel.avrdbg.tool.atmelice</avrtool>
+    <avrtoolserialnumber>J41800005444</avrtoolserialnumber>
+    <avrdeviceexpectedsignature>0x1E9705</avrdeviceexpectedsignature>
+    <com_atmel_avrdbg_tool_atmelice>
+      <ToolOptions xmlns="">
+        <InterfaceProperties>
+        </InterfaceProperties>
+      </ToolOptions>
+      <ToolType xmlns="">com.atmel.avrdbg.tool.atmelice</ToolType>
+      <ToolNumber xmlns="">J41800005444</ToolNumber>
+      <ToolName xmlns="">Atmel-ICE</ToolName>
+    </com_atmel_avrdbg_tool_atmelice>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <ToolchainSettings>
