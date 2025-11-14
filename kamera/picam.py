@@ -40,7 +40,7 @@ def quantize_heading_deg_to_7bit(heading_deg: float, lo=-25.0, hi=25.0) -> int:
     """
     clamped = max(lo, min(hi, heading_deg))
     norm = (clamped - lo) / (hi - lo)
-    return int(round(norm * 100)) & 0x7F  # 0..100
+    return int(round(norm * 127)) & 0x7F  # 0..127
 
 
 SOCKET_PATH = "/tmp/cam_offset.sock"
