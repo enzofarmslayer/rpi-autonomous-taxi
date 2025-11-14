@@ -54,7 +54,7 @@ void pwn_init(void) {
 	// Fast PWM mode (WGM22) + prescaler 32 (CS21, CS20)
 	TCCR2B = (1 << WGM22) | (1 << CS21) | (1 << CS20);
 
-	OCR2A = MAX_PERCENT;
+	OCR2A = MAX_COUNT;
 	OCR2B = 0;
 
 	// Configure ports
@@ -62,6 +62,8 @@ void pwn_init(void) {
 }
 
 void set_gas_percent(uint8_t percent, uint8_t dir) {
+	if (percent < 40) percent = 0; // Min throttle to avoid stall
+
 	PORTD &= ~(1 << PD3_BRAKE);
 	
 	if (dir == 0) {
@@ -71,7 +73,7 @@ void set_gas_percent(uint8_t percent, uint8_t dir) {
 	}
 	
 	if (percent > 100) percent = 100;
-	OCR2B = (uint16_t)percent*MAX_PERCENT/100;
+	OCR2B = (uint16_t)percent*MAX_COUNT/100;
 }
 
 uint8_t uart_reciever() {
@@ -108,8 +110,11 @@ int main(void)
 		if(data){
 			data_signed = (int8_t)data - 63;
 			int8_t offset = data_signed > 0 ? data_signed : -data_signed;
-			if (offset < 30) {
-				set_gas_percent(0, 0);
+			if (offset < 2) {
+				set_gas_percent(70, 0);
+			}
+			else if (offset < 28) {
+				set_gas_percent(55-(offset>>1));
 			} else {
 				set_gas_percent(0, 0);
 			}
