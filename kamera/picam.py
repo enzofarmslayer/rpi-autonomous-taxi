@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Runs only on Raspberry Pi
 
 from picamera2 import Picamera2
@@ -7,13 +6,13 @@ import socket
 import time
 
 import config
-from kamera.streamer import FrameTCPStreamer
-from process_frame import process_frame   # your vision pipeline
+from streamer import FrameTCPStreamer
+from process_frame import process_frame
 
 picam2 = Picamera2()
 streamer = FrameTCPStreamer(host="0.0.0.0", port=config.PORT)
 
-JPEG_QUALITY = 60  # adjust as you like (0–100)
+JPEG_QUALITY = 60
 
 def picam_init():
     cam_cfg = picam2.create_preview_configuration(
