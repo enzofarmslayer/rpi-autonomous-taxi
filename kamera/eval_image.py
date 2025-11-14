@@ -26,7 +26,7 @@ def evaluate_image(image_path: str):
     debug_frame = result["debug_frame"]
 
     if found:
-        print(f"Offset angle: {angle:.2f}°")
+        print(f"Offset: {angle:.1f}")
     else:
         print("No line detected")
 
@@ -44,31 +44,21 @@ def evaluate_image(image_path: str):
                 roi_vis,
                 [pts_roi],
                 isClosed=False,
-                color=(0, 255, 255),
-                thickness=2,
+                color=(0, 240, 255),
+                thickness=3,
             )
-        # mark near (bottom) and lookahead (top)
-        near_cx, near_cy = centers_roi[0]
-        look_cx, look_cy = centers_roi[-1]
-        cv2.circle(roi_vis, (near_cx, near_cy), 5, (0, 0, 255), -1)
-        cv2.circle(roi_vis, (look_cx, look_cy), 5, (0, 255, 0), -1)
-
-    roi_mid_x = roi.shape[1] // 2
-    cv2.line(roi_vis, (roi_mid_x, roi.shape[0]), (roi_mid_x, 0), (255, 0, 0), 1)
 
     # Plot
     plt.figure(figsize=(12, 6))
 
     plt.subplot(1, 2, 1)
-    title_left = "Full frame with lane centerline"
-    if found:
-        title_left += f" | angle = {angle:.2f}°"
+    title_left = "Full view"
     plt.title(title_left)
     plt.imshow(cv2.cvtColor(debug_frame, cv2.COLOR_BGR2RGB))
     plt.axis("off")
 
     plt.subplot(1, 2, 2)
-    plt.title("ROI binary + lane centerline (bottom → top)")
+    plt.title("ROI Binary")
     plt.imshow(cv2.cvtColor(roi_vis, cv2.COLOR_BGR2RGB))
     plt.axis("off")
 
