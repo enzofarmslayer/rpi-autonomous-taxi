@@ -99,7 +99,7 @@ def roi_to_fullframe(x_roi, y_roi, off_x, off_y):
     return x_roi + off_x, y_roi + off_y
 
 
-def _find_segments(xs, min_width=5):
+def find_segments(xs, min_width):
     """
     Group sorted x indices into contiguous segments [start, end].
     Ignore segments narrower than min_width pixels (noise).
@@ -162,7 +162,7 @@ def get_centerline_points(binary, num_scanlines: int = 6):
             # No tape at this row
             continue
 
-        segments = _find_segments(xs, min_width=5)
+        segments = find_segments(xs, min_width=6)
         if not segments:
             continue
 
