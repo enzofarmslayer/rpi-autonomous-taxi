@@ -20,7 +20,7 @@
 #define BAUD 115200
 #define MYUBRR (F_CPU/8/BAUD - 1)
 
-uint8_t MAX_PERCENT = 255;
+uint8_t MAX_COUNT = 255;
 
 void clock_init(void);
 
@@ -114,7 +114,7 @@ int main(void)
 				set_gas_percent(70, 0);
 			}
 			else if (offset < 28) {
-				set_gas_percent(55-(offset>>1));
+				set_gas_percent(55-(offset>>1), 0);
 			} else {
 				set_gas_percent(0, 0);
 			}
