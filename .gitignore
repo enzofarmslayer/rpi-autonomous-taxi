@@ -4,3 +4,4 @@ kamera/pi_cam_legacy.py
 kamera/test_images/
 __pycache__
 .venv
+.vscode/
