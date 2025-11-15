@@ -33,7 +33,7 @@ def evaluate_image(image_path: str):
     # ROI + binary + ROI centerline
     roi, (off_x, off_y) = extract_roi(frame)
     binary = preprocess(roi)
-    centers_roi = get_centerline_points(binary, num_scanlines=6)
+    centers_roi = get_centerline_points(binary)
 
     roi_vis = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
 
