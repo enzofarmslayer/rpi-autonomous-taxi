@@ -4,8 +4,8 @@
 #include <stdbool.h>
 
 
-#define PID_P 3.0
-#define PID_I 0.5
+#define PID_P 2.0
+#define PID_I 0.1
 #define PID_D 0.0
 
 void servo_init(void);

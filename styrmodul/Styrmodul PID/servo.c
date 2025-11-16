@@ -37,13 +37,13 @@ void set_servo_value(uint16_t percent) {
 }
 
 void servo_pid(int8_t error_angle) {
-	static float i_term = 1.5f;
+	static float i_term = 0.0f;
 	static int8_t prev_error = 0;
 
 	int16_t d_error = (int16_t)error_angle - (int16_t)prev_error;
 	
-	const float I_MIN = -100.0f;
-	const float I_MAX =  100.0f;
+	const float I_MIN = -200.0f;
+	const float I_MAX =  200.0f;
 	i_term += (float)error_angle;
 	if (i_term > I_MAX) i_term = I_MAX;
 	if (i_term < I_MIN) i_term = I_MIN;

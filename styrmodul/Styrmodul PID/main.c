@@ -110,16 +110,12 @@ int main(void)
 		if(data){
 			data_signed = (int8_t)data - 63;
 			int8_t offset = data_signed > 0 ? data_signed : -data_signed;
-			if (offset < 2) {
-				set_gas_percent(70, 0);
-			}
-			else if (offset < 28) {
-				set_gas_percent(55-(offset>>1), 0);
+			
+			if (offset < 30) {
+				set_gas_percent(65-(offset>>1), 0);
 			} else {
 				set_gas_percent(0, 0);
 			}
-			
-			uart_sender('O', offset);
 		}
 		servo_tick_run(data_signed);
 		_delay_ms(10);
