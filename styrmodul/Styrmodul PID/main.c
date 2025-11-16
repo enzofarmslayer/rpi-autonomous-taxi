@@ -85,6 +85,18 @@ void stop() {
 	PORTD |= (1 << PD3_BRAKE);
 }
 
+uint8_t gas_from_offset(int8_t offset) {
+	if (offset < 5) {
+		return 75;
+	} else if (offset < 12) {
+		return 75-(2*(offset-5));
+	} else if (offset < 40) {
+		return 65-(offset>>1);
+	}
+	
+	return 0;
+}
+
 
 int main(void)
 {
@@ -111,12 +123,10 @@ int main(void)
 			data_signed = (int8_t)data - 63;
 			int8_t offset = data_signed > 0 ? data_signed : -data_signed;
 			
-			if (offset < 30) {
-				set_gas_percent(65-(offset>>1), 0);
-			} else {
-				set_gas_percent(0, 0);
-			}
+			uint8_t gas = gas_from_offset(offset);
+			set_gas_percent(gas, 0);
 		}
+		
 		servo_tick_run(data_signed);
 		_delay_ms(10);
 	}
