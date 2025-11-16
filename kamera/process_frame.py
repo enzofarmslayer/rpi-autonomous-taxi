@@ -6,7 +6,7 @@ from config import (
     FRAME_W, FRAME_H, ROI_TOP_SCALE, LANE_WIDTH_OF_ROI,
     ROI_TOP, ROI_BOTTOM, HORIZONTAL_MARGIN, LANE_WIDTH_DECREASE_RATE,
     LOOKAHEAD_POS, FOCAL_LENGTH_PIX, CAMERA_X_OFFSET, SCANLINES,
-    MAX_DEV_FROM_PREC_SCANLINE, TAPE_MIN_WIDTH, MIN_LANE_WIDTH_PX
+    MAX_DEV_FROM_PREC_SCANLINE, TAPE_MIN_WIDTH, MIN_LANE_WIDTH_PX, STOP_LINE_MIN_WIDTH
 )
 
 _prev_center_x = None
@@ -114,7 +114,10 @@ def find_segments(tape_points):
         if x == prev + 1:
             prev = x
         else:
-            if prev - start + 1 >= TAPE_MIN_WIDTH:
+            length = prev - start + 1 
+            if length >= STOP_LINE_MIN_WIDTH:
+                print("Found stopline")
+            if length >= TAPE_MIN_WIDTH:
                 segments.append((start, prev))
             start = prev = x
     if prev - start + 1 >= TAPE_MIN_WIDTH:
@@ -203,18 +206,27 @@ def get_centerline_points(binary):
             # One tape
             c, s, e = seg_centers[0]
 
+            def get_right(c):
+                return c + LANE_WIDTH_OF_ROI*w*pow(LANE_WIDTH_DECREASE_RATE, len(centers)) #Right
+
+            def get_left(c):
+                return c - LANE_WIDTH_OF_ROI*w*pow(LANE_WIDTH_DECREASE_RATE, len(centers)) # Left
+
             # Check if left or right
-            if (c < w/2):
-                # Left
+            if (c < 0.3*w):
                 left_x = c
-                right_x = c + LANE_WIDTH_OF_ROI*w*pow(LANE_WIDTH_DECREASE_RATE, len(centers))
-            else:
-                # Right
+                right_x = get_right(c)
+            elif (c > 0.7*w):
                 right_x = c
-                left_x = c - LANE_WIDTH_OF_ROI*w*pow(LANE_WIDTH_DECREASE_RATE, len(centers))
+                left_x = get_left(c)
+            else: # Use prev
+                if c-_prev_center_x < 0:
+                    left_x = c
+                    right_x = get_right(c)
+                else:
+                    right_x = c
+                    left_x = get_left(c)
 
-
-        # Compute lane center, store point
         center_x = 0.5 * (left_x + right_x)
         print(f"Center: {center_x:.0f}")
         add = True
