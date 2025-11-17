@@ -5,6 +5,11 @@
 #include <string>
 #include <queue>
 #include <algorithm>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include <cstring>
+
 
 using namespace std;
 using Edge = pair<int, int>;
@@ -141,8 +146,22 @@ int init_drive_socket()
     int fd = ::socket(AF_UNIX, SOCK_DGRAM, 0);
     if (fd < 0) { perror("socket"); return -1; }
 
+    // CLIENT-SOCKET (avsändarens egen)
+    sockaddr_un addr{};
+    addr.sun_family = AF_UNIX;
+    std::strcpy(addr.sun_path, "/tmp/path_cmd_client.sock");
+
+    ::unlink(addr.sun_path);
+
+    if (::bind(fd, (sockaddr*)&addr, sizeof(addr)) < 0) {
+        perror("bind client");
+        ::close(fd);
+        return -1;
+    }
+
     return fd;
 }
+
 
 bool send_drive_cmd(int fd, uint8_t cmd)
 {
@@ -153,7 +172,10 @@ bool send_drive_cmd(int fd, uint8_t cmd)
     // Skicka kommando
     ssize_t n = sendto(fd, &cmd, 1, 0,
                        (sockaddr*)&addr, sizeof(addr));
-    if (n != 1) return false;
+    if (n != 1) {
+        perror("sendto");
+        return false;
+    }
 
     // Vänta på DONE
     char ack;
@@ -173,6 +195,7 @@ int main()
     if (fd < 0) return 1;
 
     for (const auto& t : turns) {
+        cout << "TURN: " << t << " -> encoded: " << (int)encode_turn(t) << endl;
         uint8_t cmd = encode_turn(t);
 
         bool ok = send_drive_cmd(fd, cmd);
