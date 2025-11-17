@@ -123,7 +123,7 @@ vector<string> path_to_turns(vector<string> path) {
                 turns.push_back(comp_node.second);
                 current = node;
             }
-        }
+        }fkdsojkgor
     }
 
     return turns;
