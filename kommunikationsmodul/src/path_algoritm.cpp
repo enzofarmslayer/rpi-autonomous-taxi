@@ -109,7 +109,7 @@ vector<string> path_to_turns(vector<string> path) {
         {"3", {{"1", "H"}, {"4", "V"}, {"6", "F"}}},
         {"4", {{"2", "V"}, {"3", "H"}, {"5", "H"}, {"6", "V"}}},
         {"5", {{"2", "F"}, {"4", "V"}, {"7", "H"}}},
-        {"6", {{"4", "H"}, {"3", "F"}, {"7", "v"}}},
+        {"6", {{"4", "H"}, {"3", "F"}, {"7", "V"}}},
         {"7", {{"6", "H"}, {"5", "V"}}}
     };
     string start = path.front();
@@ -129,12 +129,59 @@ vector<string> path_to_turns(vector<string> path) {
     return turns;
 }
 
+uint8_t encode_turn(const string& turn) {
+    if (turn == "H") return 0b01;
+    if (turn == "V") return 0b10;
+    if (turn == "F") return 0b11;
+    return 0b00; // Invalid
+}
+
+int init_drive_socket()
+{
+    int fd = ::socket(AF_UNIX, SOCK_DGRAM, 0);
+    if (fd < 0) { perror("socket"); return -1; }
+
+    return fd;
+}
+
+bool send_drive_cmd(int fd, uint8_t cmd)
+{
+    sockaddr_un addr{};
+    addr.sun_family = AF_UNIX;
+    std::strcpy(addr.sun_path, "/tmp/drive_cmd.sock");
+
+    // Skicka kommando
+    ssize_t n = sendto(fd, &cmd, 1, 0,
+                       (sockaddr*)&addr, sizeof(addr));
+    if (n != 1) return false;
+
+    // Vänta på DONE
+    char ack;
+    n = recv(fd, &ack, 1, 0);
+    if (n == 1 && ack == 'D') return true;
+
+    return false;
+}
+
+
 int main()
 {
     vector<string> p = path("6", "3");
     vector<string> turns = path_to_turns(p);
 
-    for (const auto& turn : turns) {
-        cout << "turn: " << turn << endl;
+    int fd = init_drive_socket();
+    if (fd < 0) return 1;
+
+    for (const auto& t : turns) {
+        uint8_t cmd = encode_turn(t);
+
+        bool ok = send_drive_cmd(fd, cmd);
+        if (!ok) {
+            cout << "Fel vid manöver" << endl;
+            break;
+        }
     }
+
+    ::close(fd);
 }
+
