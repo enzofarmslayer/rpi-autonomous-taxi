@@ -42,8 +42,8 @@ void servo_pid(int8_t error_angle) {
 
 	int16_t d_error = (int16_t)error_angle - (int16_t)prev_error;
 	
-	const float I_MIN = -1000.0f;
-	const float I_MAX =  1000.0f;
+	const float I_MIN = -200.0f;
+	const float I_MAX =  200.0f;
 	i_term += (float)error_angle;
 	if (i_term > I_MAX) i_term = I_MAX;
 	if (i_term < I_MIN) i_term = I_MIN;

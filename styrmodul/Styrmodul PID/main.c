@@ -20,7 +20,7 @@
 #define BAUD 115200
 #define MYUBRR (F_CPU/8/BAUD - 1)
 
-uint8_t MAX_PERCENT = 128;
+uint8_t MAX_COUNT = 255;
 
 void clock_init(void);
 
@@ -54,7 +54,7 @@ void pwn_init(void) {
 	// Fast PWM mode (WGM22) + prescaler 32 (CS21, CS20)
 	TCCR2B = (1 << WGM22) | (1 << CS21) | (1 << CS20);
 
-	OCR2A = MAX_PERCENT;
+	OCR2A = MAX_COUNT;
 	OCR2B = 0;
 
 	// Configure ports
@@ -62,6 +62,8 @@ void pwn_init(void) {
 }
 
 void set_gas_percent(uint8_t percent, uint8_t dir) {
+	if (percent < 40) percent = 0; // Min throttle to avoid stall
+
 	PORTD &= ~(1 << PD3_BRAKE);
 	
 	if (dir == 0) {
@@ -71,7 +73,7 @@ void set_gas_percent(uint8_t percent, uint8_t dir) {
 	}
 	
 	if (percent > 100) percent = 100;
-	OCR2B = (uint16_t)percent*MAX_PERCENT/100;
+	OCR2B = (uint16_t)percent*MAX_COUNT/100;
 }
 
 uint8_t uart_reciever() {
@@ -83,6 +85,18 @@ void stop() {
 	PORTD |= (1 << PD3_BRAKE);
 }
 
+uint8_t gas_from_offset(int8_t offset) {
+	if (offset < 5) {
+		return 75;
+	} else if (offset < 12) {
+		return 75-(2*(offset-5));
+	} else if (offset < 40) {
+		return 65-(offset>>1);
+	}
+	
+	return 0;
+}
+
 
 int main(void)
 {
@@ -91,7 +105,7 @@ int main(void)
 	clock_init();       // startar Timer0 1 ms-tick (för ms_elapsed, millis)
 	servo_init();
 	sei();              // aktiverar globala avbrott
-	int8_t data_signed = 50;
+	int8_t data_signed = 0;
 	
 	while (1) {
 		/*
@@ -106,10 +120,14 @@ int main(void)
 		uint8_t data = uart_reciever();
 		
 		if(data){
+			data_signed = (int8_t)data - 63;
+			int8_t offset = data_signed > 0 ? data_signed : -data_signed;
 			
-			data_signed = (int8_t)data - 50;
+			uint8_t gas = gas_from_offset(offset);
+			set_gas_percent(gas, 0);
 		}
-		servo_tick_run(data_signed);
 		
+		servo_tick_run(data_signed);
+		_delay_ms(10);
 	}
 }

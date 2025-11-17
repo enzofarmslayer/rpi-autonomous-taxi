@@ -1,0 +1,23 @@
+# IMAGE
+FRAME_W, FRAME_H = 480, 360
+FOCAL_LENGTH_PIX = 470
+CAMERA_X_OFFSET = -25
+
+# Region of interest
+ROI_TOP_SCALE = 0.88
+ROI_TOP = 0.65
+ROI_BOTTOM = 0.25
+HORIZONTAL_MARGIN = 0.01
+LANE_WIDTH_OF_ROI = 0.75
+LANE_WIDTH_DECREASE_RATE = 0.92     # Depends on num of scanlines
+MIN_LANE_WIDTH_PX = 150
+
+# Processing
+LOOKAHEAD_POS = 0.3                 # How far ahead steering should correct for
+SCANLINES = 8
+MAX_DEV_FROM_PREC_SCANLINE = 80
+TAPE_MIN_WIDTH = 4
+STOP_LINE_MIN_WIDTH = 100
+
+# TCP
+PORT = 6000
