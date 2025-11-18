@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import argparse
 
 from process_frame import extract_roi, preprocess
-from cluster import find_clusters, find_stop_line, remove_false_clusters, label_remaining_clusters
+import cluster as cl
+import line_detection as ld
 
 import config
 
@@ -27,12 +28,12 @@ def evaluate_image(image_path: str):
     roi, (off_x, off_y) = extract_roi(frame)
     binary = preprocess(roi)
 
-    labeled_binary, clusters = find_clusters(binary)
-    remove_false_clusters(labeled_binary, clusters)
-    stop_point = find_stop_line(labeled_binary, clusters)
+    labeled_binary, clusters = cl.find_clusters(binary)
+    ld.remove_false_clusters(labeled_binary, clusters)
+    stop_point = ld.find_stop_line(labeled_binary, clusters)
     
     if not stop_point:
-        label_remaining_clusters(labeled_binary, clusters)
+        ld.label_remaining_clusters(labeled_binary, clusters)
 
     # Visualization setup
     vis = cv2.cvtColor((binary > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
