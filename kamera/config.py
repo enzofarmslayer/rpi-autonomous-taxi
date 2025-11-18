@@ -1,3 +1,5 @@
+import cv2
+
 # IMAGE
 FRAME_W, FRAME_H = 480, 360
 FOCAL_LENGTH_PIX = 470
@@ -28,6 +30,11 @@ MAX_BOUNDARY_DEVIATION = 12         # Max allowed point-to-point deviation
 
 # Target path
 LOOKAHEAD_POS = 0.3 # How far ahead steering should correct for
+
+# DISPLAY
+FONT = cv2.FONT_HERSHEY_SIMPLEX
+FONT_SCALE = 0.5
+FONT_THICKNESS = 2
 
 # TCP
 PORT = 6000

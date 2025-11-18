@@ -102,8 +102,8 @@ def find_stop_line(binary, clusters: List[Cluster]) -> Tuple[int, int] | None:
 
             # Mask middle 10%
             w_local = x_slice.stop - x_slice.start
-            mid_start = int(w_local * 0.45)
-            mid_end   = int(w_local * 0.55)
+            mid_start = int(w_local * 0.40)
+            mid_end   = int(w_local * 0.60)
             central_strip_mask = (xs_all >= x_slice.start + mid_start) & \
                                 (xs_all <  x_slice.start + mid_end)
 
@@ -111,9 +111,13 @@ def find_stop_line(binary, clusters: List[Cluster]) -> Tuple[int, int] | None:
                 ys_central = ys_all # Fallback
             else:
                 ys_central = ys_all[central_strip_mask]
-
-            cent_y = int(np.average(ys_central))
+            
             cent_x = int(np.average(xs_all))
+
+            # Get y as mean from bottom 20% of central pixels
+            k = max(1, int(len(ys_central) * 0.30))
+            idx = np.argpartition(ys_central, -k)[-k:]
+            cent_y = int(ys_central[idx].mean())
 
             return (cent_x, cent_y)
 

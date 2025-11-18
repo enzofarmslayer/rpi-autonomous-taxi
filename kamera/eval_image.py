@@ -6,7 +6,7 @@ import argparse
 from process_frame import extract_roi, preprocess
 import cluster as cl
 import line_detection as ld
-import lane_computer as lc
+import find_boundries as lc
 
 import config
 
@@ -42,6 +42,21 @@ def evaluate_image(image_path: str):
     # Visualization setup (ROI)
     vis = cv2.cvtColor((binary > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
 
+    # Draw boundries
+    if left_boundary.size > 1:
+        left_pts = left_boundary.reshape((-1, 1, 2)).astype(np.int32)
+        cv2.polylines(
+            vis, [left_pts], isClosed=False,
+            color=(0, 200, 255), thickness=4
+        )
+
+    if right_boundary.size > 1:
+        right_pts = right_boundary.reshape((-1, 1, 2)).astype(np.int32)
+        cv2.polylines(
+            vis, [right_pts], isClosed=False,
+            color=(0, 200, 255), thickness=4
+        )
+
     # Draw clusters and show boundary points inside each one
     for cluster in clusters:
         color = get_color(cluster.id)
@@ -58,23 +73,18 @@ def evaluate_image(image_path: str):
         # Draw ClusterType text
         text = cluster.ctype.name.replace("_", " ")
         text_color = color
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.5
-        thickness = 2
 
         (text_w, text_h), baseline = cv2.getTextSize(
-            text, font, font_scale, thickness
-        )
+            text, config.FONT, config.FONT_SCALE, config.FONT_THICKNESS)
         text_x = x_sl.start + 5
         text_y = y_sl.start + 15
 
         cv2.putText(
             vis, text, (text_x, text_y),
-            font, font_scale, text_color, thickness, cv2.LINE_AA
-        )
+            config.FONT, config.FONT_SCALE, text_color, config.FONT_THICKNESS, cv2.LINE_AA)
 
         # Draw stop line (unchanged – still in ROI coords)
-        if stop_point:
+        if cluster.ctype == cl.ClusterType.CONTAINS_STOPLINE:
             sx, sy = map(int, stop_point)
             cv2.line(
                 vis,
@@ -83,25 +93,10 @@ def evaluate_image(image_path: str):
                 (0, 0, 220), 2
             )
             cv2.putText(
-                vis, "STOP", (sx - 100, sy - 10),
-                cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.8,
-                (0, 10, 240), 1
+                vis, "STOP", (cluster.bbox[2] + 8, sy - 8),
+                config.FONT, config.FONT_SCALE,
+                (0, 10, 240), config.FONT_THICKNESS, cv2.LINE_AA
             )
-
-    # NEW: also draw global polylines for left/right boundaries
-    if left_boundary.size > 1:
-        left_pts = left_boundary.reshape((-1, 1, 2)).astype(np.int32)
-        cv2.polylines(
-            vis, [left_pts], isClosed=False,
-            color=(0, 200, 255), thickness=4
-        )
-
-    if right_boundary.size > 1:
-        right_pts = right_boundary.reshape((-1, 1, 2)).astype(np.int32)
-        cv2.polylines(
-            vis, [right_pts], isClosed=False,
-            color=(0, 200, 255), thickness=4
-        )
 
     # Convert to RGB for Matplotlib
     final_rgb = cv2.cvtColor(vis, cv2.COLOR_BGR2RGB)
