@@ -18,12 +18,13 @@ MIN_LINE_WIDTH_PX = 4
 MAX_LINE_WIDTH_PX = 18
 MAX_LINE_THICKNESS_DEVATION = 0.4
 STOP_LINE_MIN_WIDTH = 0.6 * FRAME_W
-MIN_Y_PX_PER_LINE = 20
+MIN_Y_PX_PER_LINE = 10
 
 # Lane config
 MIN_LANE_WIDTH_PX = 150
 DEFAULT_LANE_WIDTH_OF_ROI = 0.75
 LANE_WIDTH_DECREASE_RATE = 0.92     # Depends on num of scanlines
+MAX_BOUNDARY_DEVIATION = 12         # Max allowed point-to-point deviation
 
 # Target path
 LOOKAHEAD_POS = 0.3 # How far ahead steering should correct for

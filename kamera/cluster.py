@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Tuple, List
+from typing import Tuple
 import numpy as np
 from scipy import ndimage
 from enum import Enum, auto

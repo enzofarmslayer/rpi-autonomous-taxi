@@ -6,6 +6,7 @@ import argparse
 from process_frame import extract_roi, preprocess
 import cluster as cl
 import line_detection as ld
+import lane_computer as lc
 
 import config
 
@@ -19,6 +20,7 @@ COLORS = [
 def get_color(cluster_id: int):
     return COLORS[cluster_id % len(COLORS)]
 
+
 def evaluate_image(image_path: str):
     frame = cv2.imread(image_path)
     if frame is None:
@@ -31,63 +33,98 @@ def evaluate_image(image_path: str):
     labeled_binary, clusters = cl.find_clusters(binary)
     ld.remove_false_clusters(labeled_binary, clusters)
     stop_point = ld.find_stop_line(labeled_binary, clusters)
-    
-    if not stop_point:
-        ld.label_remaining_clusters(labeled_binary, clusters)
+    ld.label_remaining_clusters(labeled_binary, clusters)
 
-    # Visualization setup
+    left_boundary, right_boundary = lc.compute_lane_boundaries(
+        labeled_binary, clusters
+    )
+
+    # Visualization setup (ROI)
     vis = cv2.cvtColor((binary > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
 
-    # Draw clusters
+    # Draw clusters and show boundary points inside each one
     for cluster in clusters:
         color = get_color(cluster.id)
         y_sl, x_sl = cluster.slice
 
-        # Draw bounding box and center dot
-        cv2.rectangle(vis, (x_sl.start, y_sl.start), (x_sl.stop, y_sl.stop), color, 2)
+        # Draw bounding box
+        cv2.rectangle(
+            vis,
+            (x_sl.start, y_sl.start),
+            (x_sl.stop,  y_sl.stop),
+            color, 2
+        )
 
-        # ────── NEW: Draw ClusterType text in the middle ──────
+        # Draw ClusterType text
         text = cluster.ctype.name.replace("_", " ")
         text_color = color
-        
-        # Font settings
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.5
         thickness = 2
 
-        # Get text size to center it
-        (text_w, text_h), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+        (text_w, text_h), baseline = cv2.getTextSize(
+            text, font, font_scale, thickness
+        )
         text_x = x_sl.start + 5
         text_y = y_sl.start + 15
 
-        cv2.putText(vis, text, (text_x, text_y),
-                    font, font_scale, text_color, thickness, cv2.LINE_AA)
+        cv2.putText(
+            vis, text, (text_x, text_y),
+            font, font_scale, text_color, thickness, cv2.LINE_AA
+        )
 
-        # Draw stop line
+        # Draw stop line (unchanged – still in ROI coords)
         if stop_point:
             sx, sy = map(int, stop_point)
-            cv2.line(vis, (cluster.bbox[2], sy), (cluster.bbox[3], sy), (0, 0, 220), 2)
-            cv2.putText(vis, "STOP", (sx - 100, sy - 10), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.8, (0, 10, 240), 1)
+            cv2.line(
+                vis,
+                (cluster.bbox[2], sy),
+                (cluster.bbox[3], sy),
+                (0, 0, 220), 2
+            )
+            cv2.putText(
+                vis, "STOP", (sx - 100, sy - 10),
+                cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.8,
+                (0, 10, 240), 1
+            )
 
-    """# DRAW CENTERLINE
-    if len(center_array) > 1:
-        center_points = center_array.reshape((-1, 1, 2)).astype(np.int32)
-        cv2.polylines(vis, [center_points], isClosed=False, 
-                    color=(0, 230, 255), thickness=2)"""
+    # NEW: also draw global polylines for left/right boundaries
+    if left_boundary.size > 1:
+        left_pts = left_boundary.reshape((-1, 1, 2)).astype(np.int32)
+        cv2.polylines(
+            vis, [left_pts], isClosed=False,
+            color=(0, 200, 255), thickness=4
+        )
 
-    # Show results
+    if right_boundary.size > 1:
+        right_pts = right_boundary.reshape((-1, 1, 2)).astype(np.int32)
+        cv2.polylines(
+            vis, [right_pts], isClosed=False,
+            color=(0, 200, 255), thickness=4
+        )
+
+    # Convert to RGB for Matplotlib
     final_rgb = cv2.cvtColor(vis, cv2.COLOR_BGR2RGB)
 
+    # Show results
     plt.figure(figsize=(16, 8))
+
+    # Original + ROI rectangle
     plt.subplot(1, 2, 1)
     plt.title("Original + ROI")
-    plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-    cv2.rectangle(frame, (off_x, off_y), (off_x + binary.shape[1], off_y + binary.shape[0]), (0, 255, 255), 3)
-    plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    frame_with_roi = frame.copy()
+    cv2.rectangle(
+        frame_with_roi,
+        (off_x, off_y),
+        (off_x + binary.shape[1], off_y + binary.shape[0]),
+        (0, 255, 255), 3
+    )
+    plt.imshow(cv2.cvtColor(frame_with_roi, cv2.COLOR_BGR2RGB))
     plt.axis("off")
 
+    # ROI visualization with clusters + lane boundaries
     plt.subplot(1, 2, 2)
-    plt.title("Clusters + Centerline (Green)")
+    plt.title("Clusters + Lane Boundaries")
     plt.imshow(final_rgb)
     plt.axis("off")
 
