@@ -67,7 +67,7 @@ int main(void)
 		volatile int distance = (int)(puls *1.25);
 		
 		if (distance >= 160) {
-			uart_send_char(OPCODE_HALL);
+			//uart_send_char(OPCODE_HALL);
 			uart_send_char('1');
 		}
 		
