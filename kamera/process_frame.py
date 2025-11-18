@@ -5,7 +5,7 @@ import math
 from config import (
     FRAME_W, FRAME_H, ROI_TOP_SCALE,
     ROI_TOP, ROI_BOTTOM, HORIZONTAL_MARGIN,
-    LOOKAHEAD_POS, FOCAL_LENGTH_PIX, CAMERA_X_OFFSET
+    LOOKAHEAD_POS, FOCAL_LENGTH_PIX, CAMERA_X_OFFSET, BLACK_THRESHOLD
 )
 
 def extract_roi(frame):
@@ -48,7 +48,7 @@ def preprocess(roi):
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    _, binary = cv2.threshold(blur, 120, 255, cv2.THRESH_BINARY_INV)
+    _, binary = cv2.threshold(blur, BLACK_THRESHOLD, 255, cv2.THRESH_BINARY_INV)
 
     kernel = np.ones((3, 3), np.uint8)
     binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=1)

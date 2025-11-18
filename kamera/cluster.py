@@ -75,7 +75,6 @@ def find_clusters(binary):
 
         center_x = round(col_start + (col_end - col_start)/2)
         center_y = round(row_start + (row_end - row_start)/2)
-        print((col_end, col_start))
 
         final_clusters.append(
             Cluster(
