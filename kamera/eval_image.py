@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+import time
 
 from process_frame import extract_roi, preprocess
 import cluster as cl
@@ -28,20 +29,40 @@ def evaluate_image(image_path: str):
         raise FileNotFoundError(f"Could not read image: {image_path}")
     frame = cv2.resize(frame, (config.FRAME_W, config.FRAME_H))
 
+    t0 = time.perf_counter()
+
     roi, (off_x, off_y) = extract_roi(frame)
     binary = preprocess(roi)
+    t1 = time.perf_counter()
 
     labeled_binary, clusters = cl.find_clusters(binary)
+    t2 = time.perf_counter()
+
     ld.remove_false_clusters(labeled_binary, clusters)
+    t3 = time.perf_counter()
+
     stop_point = ld.find_stop_line(labeled_binary, clusters)
+    t4 = time.perf_counter()
+
     ld.label_remaining_clusters(labeled_binary, clusters)
+    t5 = time.perf_counter()
 
     left_boundary, right_boundary = lc.compute_lane_boundaries(
         labeled_binary, clusters
     )
+    t6 = time.perf_counter()
 
     lane_center = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape,
                                          force_side=None)
+    
+    t7 = time.perf_counter()
+    print(f"T1: {(t1 - t0) * 1000:.2f} ms")
+    print(f"T2: {(t2 - t1) * 1000:.2f} ms")
+    print(f"T3: {(t3 - t2) * 1000:.2f} ms")
+    print(f"T4: {(t4 - t3) * 1000:.2f} ms")
+    print(f"T5: {(t5 - t4) * 1000:.2f} ms")
+    print(f"T6: {(t6 - t5) * 1000:.2f} ms")
+    print(f"T7: {(t7 - t6) * 1000:.2f} ms")
 
     # Visualization setup (ROI)
     vis = cv2.cvtColor((binary > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)

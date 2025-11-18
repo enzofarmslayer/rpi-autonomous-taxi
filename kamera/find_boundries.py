@@ -30,7 +30,6 @@ def _is_lane_like(pts: np.ndarray) -> bool:
     return True  # all segments behave vertically enough
 
 
-
 def collect_boundary_candidates(
     binary_labeled: np.ndarray,
     clusters: list[Cluster],
