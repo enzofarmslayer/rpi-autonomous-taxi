@@ -40,7 +40,8 @@ def evaluate_image(image_path: str):
         labeled_binary, clusters
     )
 
-    lane_center = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape)
+    lane_center = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape,
+                                         force_side=None)
 
     # Visualization setup (ROI)
     vis = cv2.cvtColor((binary > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)

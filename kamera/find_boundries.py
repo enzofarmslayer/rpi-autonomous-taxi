@@ -24,7 +24,7 @@ def _is_lane_like(pts: np.ndarray) -> bool:
         dx = abs(x1 - x0)
         dy = abs(y1 - y0)
 
-        if dy/dx < THRESHOLD:
+        if dy/max(1, dx) < THRESHOLD:
             return False  # NOT lane-like
 
     return True  # all segments behave vertically enough
