@@ -21,7 +21,7 @@ void SensorReader::run() {
 
         ssize_t r = ::read(sensor_.get(), buf.data(), buf.size()); // blocking
         if (r > 0) {
-            uint8_t last = buf[size_t(r - 1)];
+            uint8_t last = buf[size_t(r - 1)];         
             std::cout << (uint8_t)last << endl;
             st_.sensor_seen.store(true);
             st_.sensor_byte.store(last);
