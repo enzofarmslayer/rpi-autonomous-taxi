@@ -23,9 +23,9 @@ STOP_LINE_MIN_WIDTH = 0.6 * FRAME_W
 MIN_Y_PX_PER_LINE = 10
 
 # Lane config
-MIN_LANE_WIDTH_PX = 150
-DEFAULT_LANE_WIDTH_OF_ROI = 0.75
-LANE_WIDTH_DECREASE_RATE = 0.92     # Depends on num of scanlines
+SCANLINES = 8
+DEFAULT_LANE_WIDTH_OF_ROI = 0.80
+LANE_WIDTH_DECREASE_RATE = 0.92
 MAX_BOUNDARY_DEVIATION = 12         # Max allowed point-to-point deviation
 
 # Target path

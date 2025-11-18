@@ -7,6 +7,7 @@ from process_frame import extract_roi, preprocess
 import cluster as cl
 import line_detection as ld
 import find_boundries as lc
+import find_path as fp
 
 import config
 
@@ -39,6 +40,8 @@ def evaluate_image(image_path: str):
         labeled_binary, clusters
     )
 
+    lane_center = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape)
+
     # Visualization setup (ROI)
     vis = cv2.cvtColor((binary > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
 
@@ -47,15 +50,20 @@ def evaluate_image(image_path: str):
         left_pts = left_boundary.reshape((-1, 1, 2)).astype(np.int32)
         cv2.polylines(
             vis, [left_pts], isClosed=False,
-            color=(0, 200, 255), thickness=4
+            color=(0, 0, 255), thickness=4
         )
 
     if right_boundary.size > 1:
         right_pts = right_boundary.reshape((-1, 1, 2)).astype(np.int32)
         cv2.polylines(
             vis, [right_pts], isClosed=False,
-            color=(0, 200, 255), thickness=4
+            color=(0, 0, 255), thickness=4
         )
+
+    # Draw center path
+    if lane_center.size > 1:
+        center_pts = lane_center.reshape((-1, 1, 2)).astype(np.int32)
+        cv2.polylines(vis, [center_pts], isClosed=False, color=(0, 200, 255), thickness=2)
 
     # Draw clusters and show boundary points inside each one
     for cluster in clusters:
@@ -97,6 +105,7 @@ def evaluate_image(image_path: str):
                 config.FONT, config.FONT_SCALE,
                 (0, 10, 240), config.FONT_THICKNESS, cv2.LINE_AA
             )
+
 
     # Convert to RGB for Matplotlib
     final_rgb = cv2.cvtColor(vis, cv2.COLOR_BGR2RGB)
