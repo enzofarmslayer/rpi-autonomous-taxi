@@ -6,42 +6,62 @@ import config
 from cluster import Cluster, ClusterType, get_cluster_points
 
 
+def _is_lane_like(pts: np.ndarray) -> bool:
+    """
+    Return True if the boundary behaves like a lane (mostly vertical).
+    Return False if any segment looks more like a stop line.
+    """
+
+    if pts is None or len(pts) < 2:
+        return False
+
+    THRESHOLD = 2/5
+
+    for i in range(len(pts) - 1):
+        x0, y0 = pts[i]
+        x1, y1 = pts[i + 1]
+
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+
+        if dy/dx < THRESHOLD:
+            return False  # NOT lane-like
+
+    return True  # all segments behave vertically enough
+
+
+
 def collect_boundary_candidates(
     binary_labeled: np.ndarray,
-    clusters: List[Cluster],
-) -> Tuple[Dict[int, List[int]], Dict[int, List[int]]]:
-    """
-    Collect per-row x candidates for:
-      - Left boundary
-      - Right boundary
+    clusters: list[Cluster],
+):
+    left_by_y = defaultdict(list)
+    right_by_y = defaultdict(list)
 
-    Stopline clusters contribute their OUTER EDGES (left/right).
-    LEFT/RIGHT clusters contribute their CENTERS.
-    """
-    left_by_y: Dict[int, List[int]] = defaultdict(list)
-    right_by_y: Dict[int, List[int]] = defaultdict(list)
+    roi_center_x = binary_labeled.shape[1] // 2
 
     for cl in clusters:
         if cl.ctype == ClusterType.CONTAINS_STOPLINE:
-            # Stopline → use outer edges
             pts_left = get_cluster_points(binary_labeled, cl, method="left")
             pts_right = get_cluster_points(binary_labeled, cl, method="right")
-            for x, y in pts_left:
-                left_by_y[int(y)].append(int(x))
+
             for x, y in pts_right:
                 right_by_y[int(y)].append(int(x))
 
+            for x, y in pts_left:
+                left_by_y[int(y)].append(int(x))
+
         elif cl.ctype == ClusterType.LEFT:
-            # Left lane markings → use center
             pts_center = get_cluster_points(binary_labeled, cl, method="center")
             for x, y in pts_center:
                 left_by_y[int(y)].append(int(x))
 
         elif cl.ctype == ClusterType.RIGHT:
-            # Right lane markings → use center
             pts_center = get_cluster_points(binary_labeled, cl, method="center")
             for x, y in pts_center:
                 right_by_y[int(y)].append(int(x))
+
+        # IGNORE / OK etc. skipped
 
     return left_by_y, right_by_y
 
@@ -160,5 +180,14 @@ def compute_lane_boundaries(
     # Validate
     left_arr = apply_centered_boundary_safety_limit(left_arr)
     right_arr = apply_centered_boundary_safety_limit(right_arr)
+
+    # For stoplines check so boundry isnt the stopline itself
+    for cl in clusters:
+        if cl.ctype == ClusterType.CONTAINS_STOPLINE:
+            if not _is_lane_like(left_arr):
+                left_arr = np.empty((0, 2), dtype=np.int32)
+
+            if not _is_lane_like(right_arr):
+                right_arr = np.empty((0, 2), dtype=np.int32)
 
     return left_arr, right_arr
