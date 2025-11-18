@@ -4,20 +4,29 @@ FOCAL_LENGTH_PIX = 470
 CAMERA_X_OFFSET = -25
 
 # Region of interest
-ROI_TOP_SCALE = 0.88
-ROI_TOP = 0.65
-ROI_BOTTOM = 0.25
+ROI_TOP_SCALE = 0.9
+ROI_TOP = 0.7
+ROI_BOTTOM = 0.20
 HORIZONTAL_MARGIN = 0.01
-LANE_WIDTH_OF_ROI = 0.75
-LANE_WIDTH_DECREASE_RATE = 0.92     # Depends on num of scanlines
-MIN_LANE_WIDTH_PX = 150
 
-# Processing
-LOOKAHEAD_POS = 0.3                 # How far ahead steering should correct for
-SCANLINES = 8
-MAX_DEV_FROM_PREC_SCANLINE = 80
-TAPE_MIN_WIDTH = 4
-STOP_LINE_MIN_WIDTH = 100
+# Cluster config
+MIN_CLUSTER_ACTIVE_PX = 50
+DILATION_ITER_COUNT = 1
+
+# Line config
+MIN_LINE_WIDTH_PX = 4
+MAX_LINE_WIDTH_PX = 18
+MAX_LINE_THICKNESS_DEVATION = 0.4
+STOP_LINE_MIN_WIDTH = 0.6 * FRAME_W
+MIN_Y_PX_PER_LINE = 20
+
+# Lane config
+MIN_LANE_WIDTH_PX = 150
+DEFAULT_LANE_WIDTH_OF_ROI = 0.75
+LANE_WIDTH_DECREASE_RATE = 0.92     # Depends on num of scanlines
+
+# Target path
+LOOKAHEAD_POS = 0.3 # How far ahead steering should correct for
 
 # TCP
 PORT = 6000

@@ -3,14 +3,10 @@ import numpy as np
 import math
 
 from config import (
-    FRAME_W, FRAME_H, ROI_TOP_SCALE, LANE_WIDTH_OF_ROI,
-    ROI_TOP, ROI_BOTTOM, HORIZONTAL_MARGIN, LANE_WIDTH_DECREASE_RATE,
-    LOOKAHEAD_POS, FOCAL_LENGTH_PIX, CAMERA_X_OFFSET, SCANLINES,
-    MAX_DEV_FROM_PREC_SCANLINE, TAPE_MIN_WIDTH, MIN_LANE_WIDTH_PX, STOP_LINE_MIN_WIDTH
+    FRAME_W, FRAME_H, ROI_TOP_SCALE,
+    ROI_TOP, ROI_BOTTOM, HORIZONTAL_MARGIN,
+    LOOKAHEAD_POS, FOCAL_LENGTH_PIX, CAMERA_X_OFFSET
 )
-
-_prev_center_x = None
-_prev_lane_width = None
 
 def extract_roi(frame):
     frame = cv2.resize(frame, (FRAME_W, FRAME_H))
@@ -52,7 +48,7 @@ def preprocess(roi):
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    _, binary = cv2.threshold(blur, 110, 255, cv2.THRESH_BINARY_INV)
+    _, binary = cv2.threshold(blur, 120, 255, cv2.THRESH_BINARY_INV)
 
     kernel = np.ones((3, 3), np.uint8)
     binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=1)
@@ -98,156 +94,6 @@ def roi_to_fullframe(x_roi, y_roi, off_x, off_y):
     return x_roi + off_x, y_roi + off_y
 
 
-def find_segments(tape_points):
-    """
-    Group sorted x indices into contiguous segments [start, end].
-    Ignore segments narrower than min_width pixels (noise).
-    """
-    if len(tape_points) == 0:
-        return []
-
-    segments = []
-    start = tape_points[0]
-    prev = tape_points[0]
-
-    for x in tape_points[1:]:
-        if x == prev + 1:
-            prev = x
-        else:
-            length = prev - start + 1 
-            if length >= STOP_LINE_MIN_WIDTH:
-                print("Found stopline")
-            if length >= TAPE_MIN_WIDTH:
-                segments.append((start, prev))
-            start = prev = x
-    if prev - start + 1 >= TAPE_MIN_WIDTH:
-        segments.append((start, prev))
-
-    return segments
-
-
-def get_centerline_points(binary):
-    """
-    Compute lane CENTER points (bottom -> top) using both edges whenever possible.
-
-    For each horizontal row:
-      - Detect all white segments (tapes).
-      - If 2+ segments -> choose best left/right, compute center = (L+R)/2.
-      - If only 1 segment -> treat as left or right based on previous row
-        and infer missing edge using previous lane width.
-
-    Returns:
-        centers: list of (cx, cy) in ROI coordinates, bottom -> top.
-    """
-    global _prev_center_x, _prev_lane_width
-
-    h, w = binary.shape[:2]
-    mid = w / 2.0
-
-    if _prev_center_x is None:
-        _prev_center_x = mid
-    if _prev_lane_width is None:
-        # Rough initial guess; will quickly be overwritten when we see both edges
-        _prev_lane_width = LANE_WIDTH_OF_ROI
-
-    rows = np.linspace(h - 1, 0, SCANLINES, dtype=int)
-
-    centers = []
-
-    row_prev_left = _prev_center_x - _prev_lane_width / 2
-    row_prev_right = _prev_center_x + _prev_lane_width / 2
-
-    for y in rows:
-        row = binary[y, :]
-        tape_points = np.where(row > 0)[0]
-        if len(tape_points) == 0:
-            # No tape at this row
-            continue
-
-        segments = find_segments(tape_points)
-        if not segments:
-            continue
-
-        # Segment centers
-        seg_centers = [(0.5 * (s + e), s, e) for (s, e) in segments]
-
-        left_x = None
-        right_x = None
-        one_tape = False
-
-        if len(seg_centers) >= 2:
-            # Two tapes; choose pair that best matches previous left/right
-            seg_centers.sort(key=lambda t: t[0])
-
-            best_cost = 1e9
-            best_pair = None
-
-            for i in range(len(seg_centers)):
-                for j in range(i + 1, len(seg_centers)):
-                    cL, _, _ = seg_centers[i]
-                    cR, _, _ = seg_centers[j]
-                    if(abs(cL-cR) < MIN_LANE_WIDTH_PX):
-                        continue
-
-                    cost = abs(cL - row_prev_left) + abs(cR - row_prev_right)
-                    if cost < best_cost:
-                        best_cost = cost
-                        best_pair = (cL, cR)
-
-            if best_pair:
-                left_x, right_x = best_pair
-                left_x = float(max(0, min(w - 1, left_x)))
-                right_x = float(max(0, min(w - 1, right_x)))
-            else:
-                one_tape = True
-                seg_centers.sort(key=lambda t: abs(t[0]-w/2)) # pick closest to middle
-
-        if len(seg_centers) == 1 or one_tape:
-            # One tape
-            c, s, e = seg_centers[0]
-
-            def get_right(c):
-                return c + LANE_WIDTH_OF_ROI*w*pow(LANE_WIDTH_DECREASE_RATE, len(centers)) #Right
-
-            def get_left(c):
-                return c - LANE_WIDTH_OF_ROI*w*pow(LANE_WIDTH_DECREASE_RATE, len(centers)) # Left
-
-            # Check if left or right
-            if (c < 0.3*w):
-                left_x = c
-                right_x = get_right(c)
-            elif (c > 0.7*w):
-                right_x = c
-                left_x = get_left(c)
-            else: # Use prev
-                if c-_prev_center_x < 0:
-                    left_x = c
-                    right_x = get_right(c)
-                else:
-                    right_x = c
-                    left_x = get_left(c)
-
-        center_x = 0.5 * (left_x + right_x)
-        print(f"Center: {center_x:.0f}")
-        add = True
-        if len(centers):
-            if abs(center_x-centers[-1][0] > MAX_DEV_FROM_PREC_SCANLINE):
-                add = False
-        if add:
-            centers.append((int(center_x), int(y)))
-
-        # Update per-row expected positions and lane width
-        row_prev_left, row_prev_right = left_x, right_x
-        lane_width = right_x - left_x
-        if lane_width > 5:  # avoid degenerate values
-            _prev_lane_width = 0.9 * _prev_lane_width + 0.1 * lane_width
-        _prev_center_x = center_x
-
-    print(centers)
-
-    return centers
-
-
 def process_frame(frame, debug=False):
     """
     Full pipeline:
@@ -266,7 +112,7 @@ def process_frame(frame, debug=False):
     binary = preprocess(roi)
 
     # 3) Centerline points in ROI coordinates
-    centers_roi = get_centerline_points(binary)
+    centers_roi = compute_path(binary)
 
     if not centers_roi:
         # No line found
