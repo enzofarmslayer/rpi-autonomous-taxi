@@ -102,6 +102,7 @@ def compute_lane_model(binary):
     ld.remove_false_clusters(labeled_binary, clusters)
     stop_point = ld.find_stop_line(labeled_binary, clusters)
     left_boundary, right_boundary = lc.compute_lane_boundaries(labeled_binary, clusters)
+    ld.label_remaining_clusters(labeled_binary, clusters)
     lane_center = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape, force_side=None)
     return lane_center, left_boundary, right_boundary, stop_point
 
