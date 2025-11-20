@@ -1,6 +1,10 @@
 import cv2
 import numpy as np
 import math
+import cluster as cl
+import line_detection as ld
+import find_boundries as lc
+import find_path as fp
 
 from config import (
     FRAME_W, FRAME_H, ROI_TOP_SCALE,
@@ -93,6 +97,14 @@ def roi_to_fullframe(x_roi, y_roi, off_x, off_y):
     """
     return x_roi + off_x, y_roi + off_y
 
+def compute_lane_model(binary):
+    labeled_binary, clusters = cl.find_clusters(binary)
+    ld.remove_false_clusters(labeled_binary, clusters)
+    stop_point = ld.find_stop_line(labeled_binary, clusters)
+    left_boundary, right_boundary = lc.compute_lane_boundaries(labeled_binary, clusters)
+    lane_center = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape, force_side=None)
+    return lane_center, left_boundary, right_boundary, stop_point
+
 
 def process_frame(frame, debug=False):
     """
@@ -112,9 +124,9 @@ def process_frame(frame, debug=False):
     binary = preprocess(roi)
 
     # 3) Centerline points in ROI coordinates
-    centers_roi = compute_path(binary)
+    lane_center, left_boundary, right_boundary, stop_point = compute_lane_model(binary)
 
-    if not centers_roi:
+    if lane_center is None or len(lane_center) == 0:
         # No line found
         return {
             "found": False,
@@ -122,6 +134,8 @@ def process_frame(frame, debug=False):
             "centerline": [],
             "debug_frame": cv2.resize(frame, (FRAME_W, FRAME_H)) if debug else None,
         }
+    
+    centers_roi = [(x, y) for (x, y) in lane_center]
 
     # 4) Compute lookahead point in ROI coords
     lookahead_point_roi = choose_lookahead_point(centers_roi, roi_h, LOOKAHEAD_POS)
