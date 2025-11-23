@@ -13,7 +13,6 @@ class ClusterType(Enum):
     IGNORE = auto()
     OK = auto()
 
-
 @dataclass
 class Cluster:
     id: int

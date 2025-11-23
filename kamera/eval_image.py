@@ -9,6 +9,7 @@ import cluster as cl
 import line_detection as ld
 import find_boundries as lc
 import find_path as fp
+import detect_intersection as di
 
 import config
 
@@ -55,6 +56,7 @@ def evaluate_image(image_path: str):
     lane_center = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape,
                                          force_side=None)
     
+    
     t7 = time.perf_counter()
     print(f"T1: {(t1 - t0) * 1000:.2f} ms")
     print(f"T2: {(t2 - t1) * 1000:.2f} ms")
@@ -63,6 +65,13 @@ def evaluate_image(image_path: str):
     print(f"T5: {(t5 - t4) * 1000:.2f} ms")
     print(f"T6: {(t6 - t5) * 1000:.2f} ms")
     print(f"T7: {(t7 - t6) * 1000:.2f} ms")
+
+    inner_cl = di.scan_for_intersection(labeled_binary, clusters)
+    if inner_cl:
+        print("Found intersection: ", str(inner_cl.ctype))
+    else:
+        print("Found no intersection")
+
 
     # Visualization setup (ROI)
     vis = cv2.cvtColor((binary > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
@@ -86,7 +95,8 @@ def evaluate_image(image_path: str):
     if lane_center.size > 1:
         center_pts = lane_center.reshape((-1, 1, 2)).astype(np.int32)
         cv2.polylines(vis, [center_pts], isClosed=False, color=(0, 200, 255), thickness=2)
-
+    
+    
     # Draw clusters and show boundary points inside each one
     for cluster in clusters:
         color = get_color(cluster.id)
