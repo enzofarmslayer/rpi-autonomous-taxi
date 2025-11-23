@@ -1,12 +1,12 @@
 import cv2
 
-# IMAGE
+# Image
 FRAME_W, FRAME_H = 480, 360
 FOCAL_LENGTH_PIX = 470
 CAMERA_X_OFFSET = -25
 BLACK_THRESHOLD = 120
 
-# Region of interest
+# ROI (Region of interest) 
 ROI_TOP_SCALE = 0.9
 ROI_TOP = 0.70
 ROI_BOTTOM = 0.20
@@ -36,6 +36,9 @@ LOOKAHEAD_POS = 0.3 # How far ahead steering should correct for
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 FONT_SCALE = 0.5
 FONT_THICKNESS = 2
+
+# DEBUG
+PERFORMANCE_LOGGING = True
 
 # TCP
 PORT = 6000

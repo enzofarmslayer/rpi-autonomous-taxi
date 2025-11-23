@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import argparse
 import time
 
-from process_frame import extract_roi, preprocess
+import process_frame as p_frame
 import cluster as cl
 import line_detection as ld
 import find_boundries as lc
@@ -30,51 +30,15 @@ def evaluate_image(image_path: str):
         raise FileNotFoundError(f"Could not read image: {image_path}")
     frame = cv2.resize(frame, (config.FRAME_W, config.FRAME_H))
 
-    t0 = time.perf_counter()
-
-    roi, (off_x, off_y) = extract_roi(frame)
-    binary = preprocess(roi)
-    t1 = time.perf_counter()
-
-    labeled_binary, clusters = cl.find_clusters(binary)
-    t2 = time.perf_counter()
-
-    ld.remove_false_clusters(labeled_binary, clusters)
-    t3 = time.perf_counter()
-
-    stop_point = ld.find_stop_line(labeled_binary, clusters)
-    t4 = time.perf_counter()
-
-    ld.label_remaining_clusters(labeled_binary, clusters)
-    t5 = time.perf_counter()
-
-    left_boundary, right_boundary = lc.compute_lane_boundaries(
-        labeled_binary, clusters
-    )
-    t6 = time.perf_counter()
-
-    lane_center = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape,
-                                         force_side=None)
-    
-    
-    t7 = time.perf_counter()
-    print(f"T1: {(t1 - t0) * 1000:.2f} ms")
-    print(f"T2: {(t2 - t1) * 1000:.2f} ms")
-    print(f"T3: {(t3 - t2) * 1000:.2f} ms")
-    print(f"T4: {(t4 - t3) * 1000:.2f} ms")
-    print(f"T5: {(t5 - t4) * 1000:.2f} ms")
-    print(f"T6: {(t6 - t5) * 1000:.2f} ms")
-    print(f"T7: {(t7 - t6) * 1000:.2f} ms")
-
-    inner_cl = di.scan_for_intersection(labeled_binary, clusters)
-    if inner_cl:
-        print("Found intersection: ", str(inner_cl.ctype))
-    else:
-        print("Found no intersection")
+    pf = p_frame.process_frame(frame, p_frame.Direction.STRAIGHT)
 
 
     # Visualization setup (ROI)
-    vis = cv2.cvtColor((binary > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
+    vis = cv2.cvtColor((pf["labeled_binary"] > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
+
+    left_boundary = pf["boundaries"][0]
+    right_boundary = pf["boundaries"][1]
+    center = pf["center_path"]
 
     # Draw boundries
     if left_boundary.size > 1:
@@ -92,13 +56,13 @@ def evaluate_image(image_path: str):
         )
 
     # Draw center path
-    if lane_center.size > 1:
-        center_pts = lane_center.reshape((-1, 1, 2)).astype(np.int32)
+    if center.size > 1:
+        center_pts = center.reshape((-1, 1, 2)).astype(np.int32)
         cv2.polylines(vis, [center_pts], isClosed=False, color=(0, 200, 255), thickness=2)
     
     
     # Draw clusters and show boundary points inside each one
-    for cluster in clusters:
+    for cluster in pf["clusters"]:
         color = get_color(cluster.id)
         y_sl, x_sl = cluster.slice
 
@@ -125,7 +89,7 @@ def evaluate_image(image_path: str):
 
         # Draw stop line (unchanged – still in ROI coords)
         if cluster.ctype == cl.ClusterType.CONTAINS_STOPLINE:
-            sx, sy = map(int, stop_point)
+            sx, sy = map(int, pf["stop_point"])
             cv2.line(
                 vis,
                 (cluster.bbox[2], sy),
@@ -149,12 +113,6 @@ def evaluate_image(image_path: str):
     plt.subplot(1, 2, 1)
     plt.title("Original + ROI")
     frame_with_roi = frame.copy()
-    cv2.rectangle(
-        frame_with_roi,
-        (off_x, off_y),
-        (off_x + binary.shape[1], off_y + binary.shape[0]),
-        (0, 255, 255), 3
-    )
     plt.imshow(cv2.cvtColor(frame_with_roi, cv2.COLOR_BGR2RGB))
     plt.axis("off")
 

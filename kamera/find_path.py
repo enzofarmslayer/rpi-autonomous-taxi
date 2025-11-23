@@ -8,7 +8,7 @@ def compute_lane_center(
     right_boundary: np.ndarray,
     roi_shape: Tuple[int, int],
     force_side: Optional[str] = None,
-) -> np.ndarray:
+) -> np.ndarray | None:
     """
     Compute lane center points using left/right boundaries.
 
@@ -34,7 +34,7 @@ def compute_lane_center(
 
     # No boundaries at all
     if (left_boundary.size == 0) and (right_boundary.size == 0):
-        return np.empty((0, 2), dtype=np.int32)
+        return None
 
     band_height = h / num_scanlines
 
@@ -86,6 +86,6 @@ def compute_lane_center(
         centers.append((int(round(center_x)), y_center))
 
     if not centers:
-        return np.empty((0, 2), dtype=np.int32)
+        return None
 
     return np.array(centers, dtype=np.int32)

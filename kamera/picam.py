@@ -4,14 +4,17 @@ from picamera2 import Picamera2
 import cv2
 import socket
 import time
+from enum import Enum
 
 import config
 from streamer import FrameTCPStreamer
-from process_frame import process_frame
+from process_frame import process_frame, Direction
 
 picam2 = Picamera2()
 streamer = FrameTCPStreamer(host="0.0.0.0", port=config.PORT)
+_udps = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 
+SOCKET_PATH = "/tmp/cam_offset.sock"
 JPEG_QUALITY = 60
 
 def picam_init():
@@ -21,40 +24,33 @@ def picam_init():
     picam2.configure(cam_cfg)
     picam2.start()
 
+
 def streamer_init():
     streamer.start()
 
+
 def capture_frame():
     frame = picam2.capture_array()
-    # Picamera2 gives RGB, OpenCV wants BGR
-    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    # frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     return frame
 
-# --- Heading quantization & Unix socket telemetry ---
 
-def quantize_heading_deg_to_7bit(heading_deg: float, lo=-25.0, hi=25.0) -> int:
+def quantize_heading_to_7bit(heading_deg: float, min=-25.0, max=25.0) -> int:
     """
     Map heading angle in degrees to a 7-bit integer (0..100).
-    Values outside [lo, hi] are clamped.
     """
-    clamped = max(lo, min(hi, heading_deg))
-    norm = (clamped - lo) / (hi - lo)
+    clamped = max(min, min(max, heading_deg))
+    norm = (clamped - min) / (max - min)
     return int(round(norm * 127)) & 0x7F  # 0..127
 
 
-SOCKET_PATH = "/tmp/cam_offset.sock"
-_udps = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-
-
 def send_heading(heading_deg: float):
-    q = quantize_heading_deg_to_7bit(heading_deg)
+    q = quantize_heading_to_7bit(heading_deg)
     try:
-        _udps.sendto(bytes([q]), SOCKET_PATH)  # 1 byte to local socket file
+        _udps.sendto(bytes([q]), SOCKET_PATH)
     except FileNotFoundError:
-        # Receiver not up yet; ignore and keep running
         pass
     except Exception:
-        # Swallow transient errors to avoid stalling vision loop
         pass
 
 
@@ -70,7 +66,7 @@ def main():
         while True:
             frame = capture_frame()
 
-            # Run vision pipeline
+            # Run vision processing pipeline
             result = process_frame(frame, debug=True)
             heading_corr = result["angle"] if result["found"] else 0.0
             vis = result["debug_frame"] if result["debug_frame"] is not None else frame
