@@ -63,12 +63,13 @@ def main():
             frame = capture_frame()
 
             # Run vision processing pipeline
-            result = process_frame(frame, debug=True)
-            heading_corr = result["angle"] if result["found"] else 0.0
-            vis = result["debug_frame"] if result["debug_frame"] is not None else frame
+            res = process_frame(frame)
 
             # Send 7-bit heading via Unix datagram socket
-            send_heading(heading_corr)
+            send_heading(res.heading)
+
+            # Build visualization
+            
 
             # Send JPEG to TCP client (if connected)
             if streamer.has_client():

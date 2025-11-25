@@ -3,7 +3,7 @@ import cv2
 # Image
 FRAME_W, FRAME_H = 480, 360
 FOCAL_LENGTH_PIX = 470
-CAMERA_X_OFFSET = -25
+CAMERA_X_OFFSET = -20
 BLACK_THRESHOLD = 120
 
 # ROI (Region of interest) 

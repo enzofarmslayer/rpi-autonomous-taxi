@@ -112,8 +112,4 @@ def detect_diverging_paths(path_l: np.ndarray, path_r: np.ndarray, roi_shape: Tu
     if len(top_indexes) == 0: return False
     avg_width_top = widths[top_indexes].mean()
 
-    print("Top:", avg_width_top)
-    print("Middle:", avg_width_middle)
     return (avg_width_top/avg_width_middle) >= DIVERGENCE_THRESHOLD and avg_width_top > MIN_ABS_DIVERGENCE
-
-

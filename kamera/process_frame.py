@@ -7,6 +7,8 @@ import line_detection as ld
 import find_boundries as lc
 import find_path as fp
 import config
+from dataclasses import dataclass
+from typing import Optional, Tuple
 
 
 class Direction(Enum):
@@ -14,6 +16,20 @@ class Direction(Enum):
     STRAIGHT = 1
     RIGHT = 2
     STOP = 3
+
+@dataclass
+class FrameResult:
+    heading: float
+    dist_to_stopline: Optional[np.ndarray]
+    stop_point: Optional[Tuple[int, int]]
+    target_point: np.ndarray
+    target_path: np.ndarray
+    other_path: Optional[np.ndarray]
+    roi: np.ndarray
+    roi_offset: Tuple[int, int]
+    labeled_binary: np.ndarray
+    clusters: cl.Cluster
+    boundaries: Tuple[np.ndarray, np.ndarray]
 
 
 def _extract_roi(frame):
@@ -97,7 +113,7 @@ def _roi_to_fullframe(point, offsets):
     return np.add(point, offsets)
 
 
-def process_frame(frame, dir: Direction):
+def process_frame(frame, dir: Direction) -> FrameResult:
     """
     Full pipeline:
       1) Extract ROI
@@ -158,16 +174,16 @@ def process_frame(frame, dir: Direction):
     target_point = _roi_to_fullframe(target_point_roi, offset)
     heading = _compute_heading(target_point[0])
 
-    return {
-        "heading": heading,
-        "dist_to_stopline": dist_to_stop,
-        "stop_point": stop_point,
-        "target_point": target_point,
-        "target_path": target_path,
-        "other_path": other_path,
-        "roi": roi,
-        "roi_offset": offset,
-        "labeled_binary": labeled_binary,
-        "clusters": clusters,
-        "boundaries": (left_boundary, right_boundary)
-    }
+    return FrameResult(
+        heading=heading,
+        dist_to_stopline=dist_to_stop,
+        stop_point=stop_point,
+        target_point=target_point,
+        target_path=target_path,
+        other_path=other_path,
+        roi=roi,
+        roi_offset=offset,
+        labeled_binary=labeled_binary,
+        clusters=clusters,
+        boundaries=(left_boundary, right_boundary),
+    )
