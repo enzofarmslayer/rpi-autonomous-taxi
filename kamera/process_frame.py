@@ -130,31 +130,41 @@ def process_frame(frame, dir: Direction):
     # 5) Boundries
     left_boundary, right_boundary = lc.compute_lane_boundaries(labeled_binary, clusters)
 
-    # 6) Decide what to follow
-    force_active_boundry = None
-    if dir == Direction.LEFT:
-        force_active_boundry = "left"
-    elif dir == Direction.RIGHT:
-        force_active_boundry = "right"
-
-    target_path = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape,
-                                         force_side=force_active_boundry)
+    # 6) Find possible paths
+    path_l = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape,
+                                         force_side="left")
+    path_r = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape,
+                                         force_side="right")
     
-    heading = None
-    target_point = None
+    # 7) Scan for intersection
+    diverging_paths = fp.detect_diverging_paths(path_l, path_r, binary.shape)
+    print("Div paths? ", str(diverging_paths))
 
-    if target_path is not None:
-        # 7) Compute heading based on lookahead point
-        target_point_roi = _choose_lookahead_point(target_path, roi.shape[0])
-        target_point = _roi_to_fullframe(target_point_roi, offset)
-        heading = _compute_heading(target_point[0])
+    target_path = None
+    other_path = None
+    if not diverging_paths:
+        target_path = fp.compute_lane_center(left_boundary, right_boundary, roi_shape=binary.shape,
+                                         force_side=None)
+    else:
+        if dir == Direction.LEFT:
+            target_path = path_l
+            other_path = path_r
+        else:
+            target_path = path_r
+            other_path = path_l
+
+    # 8) Compute heading based on lookahead point
+    target_point_roi = _choose_lookahead_point(target_path, roi.shape[0])
+    target_point = _roi_to_fullframe(target_point_roi, offset)
+    heading = _compute_heading(target_point[0])
 
     return {
         "heading": heading,
         "dist_to_stopline": dist_to_stop,
         "stop_point": stop_point,
         "target_point": target_point,
-        "center_path": target_path,
+        "target_path": target_path,
+        "other_path": other_path,
         "roi": roi,
         "roi_offset": offset,
         "labeled_binary": labeled_binary,

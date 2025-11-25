@@ -24,16 +24,13 @@ def picam_init():
     picam2.configure(cam_cfg)
     picam2.start()
 
-
 def streamer_init():
     streamer.start()
-
 
 def capture_frame():
     frame = picam2.capture_array()
     # frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     return frame
-
 
 def quantize_heading_to_7bit(heading_deg: float, min=-25.0, max=25.0) -> int:
     """
@@ -42,7 +39,6 @@ def quantize_heading_to_7bit(heading_deg: float, min=-25.0, max=25.0) -> int:
     clamped = max(min, min(max, heading_deg))
     norm = (clamped - min) / (max - min)
     return int(round(norm * 127)) & 0x7F  # 0..127
-
 
 def send_heading(heading_deg: float):
     q = quantize_heading_to_7bit(heading_deg)

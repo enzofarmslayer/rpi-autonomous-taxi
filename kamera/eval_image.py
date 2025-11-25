@@ -30,7 +30,7 @@ def evaluate_image(image_path: str):
         raise FileNotFoundError(f"Could not read image: {image_path}")
     frame = cv2.resize(frame, (config.FRAME_W, config.FRAME_H))
 
-    pf = p_frame.process_frame(frame, p_frame.Direction.STRAIGHT)
+    pf = p_frame.process_frame(frame, p_frame.Direction.LEFT)
 
 
     # Visualization setup (ROI)
@@ -38,7 +38,8 @@ def evaluate_image(image_path: str):
 
     left_boundary = pf["boundaries"][0]
     right_boundary = pf["boundaries"][1]
-    center = pf["center_path"]
+    target_path = pf["target_path"]
+    other_path = pf["other_path"]
 
     # Draw boundries
     if left_boundary.size > 1:
@@ -56,9 +57,13 @@ def evaluate_image(image_path: str):
         )
 
     # Draw center path
-    if center.size > 1:
-        center_pts = center.reshape((-1, 1, 2)).astype(np.int32)
+    if target_path is not None and target_path.size > 1:
+        center_pts = target_path.reshape((-1, 1, 2)).astype(np.int32)
         cv2.polylines(vis, [center_pts], isClosed=False, color=(0, 200, 255), thickness=2)
+
+    if other_path is not None and other_path.size > 1:
+        center_pts = other_path.reshape((-1, 1, 2)).astype(np.int32)
+        cv2.polylines(vis, [center_pts], isClosed=False, color=(0, 90, 120), thickness=2)
     
     
     # Draw clusters and show boundary points inside each one

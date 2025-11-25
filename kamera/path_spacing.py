@@ -13,8 +13,8 @@ def _y_to_mean_x(points: np.ndarray) -> dict[int, float]:
     return {y: float(np.mean(xs)) for y, xs in buckets.items()}
 
 
-def lane_widths_on_common_y(left_boundary: np.ndarray,
-                            right_boundary: np.ndarray):
+def widths_on_common_y(left_boundary: np.ndarray,
+                        right_boundary: np.ndarray):
     """
     Returns (ys, widths) where ys are the y-coordinates that exist
     in BOTH boundaries, and widths = |x_right - x_left| at each such y.
@@ -40,39 +40,3 @@ def lane_widths_on_common_y(left_boundary: np.ndarray,
     widths = np.abs(r_xs - l_xs)
     return ys, widths
 
-
-LANE_WIDENING_THRESHOLD = 0.70  # example
-
-def detect_intersection(left_boundary: np.ndarray,
-                               right_boundary: np.ndarray,
-                               portion: float = 0.05) -> float:
-    """
-    Uses only y-values that appear in BOTH boundaries.
-    ratio = top_width / bottom_width
-    """
-    ys, widths = lane_widths_on_common_y(left_boundary, right_boundary)
-    if len(widths) < 5:
-        return 0.0
-
-    # ys increases downward (image coordinates), so:
-    #   small ys = top of ROI
-    #   large ys = bottom of ROI
-    sort_idx = np.argsort(ys)
-    ys = ys[sort_idx]
-    widths = widths[sort_idx]
-
-    n = len(widths)
-    k = max(1, int(portion * n))
-
-    top_widths = widths[:k]        # top portion
-    bottom_widths = widths[-k:]    # bottom portion
-
-    top_med = float(np.median(top_widths))
-    bottom_med = float(np.median(bottom_widths))
-
-    if bottom_med < 1e-3:
-        return 0.0
-
-    ratio = (top_med / bottom_med)
-    print(f"Ratio: {ratio:.2f}")
-    return ratio > LANE_WIDENING_THRESHOLD

@@ -8,7 +8,7 @@ BLACK_THRESHOLD = 120
 
 # ROI (Region of interest) 
 ROI_TOP_SCALE = 0.9
-ROI_TOP = 0.70
+ROI_TOP = 0.75
 ROI_BOTTOM = 0.20
 HORIZONTAL_MARGIN = 0.01
 
@@ -26,7 +26,7 @@ MIN_Y_PX_PER_LINE = 10
 # Lane config
 SCANLINES = 6
 DEFAULT_LANE_WIDTH_OF_ROI = 0.75
-LANE_WIDTH_DECREASE_RATE = 0.03
+LANE_WIDTH_DECREASE_RATE = 0.06
 MAX_BOUNDARY_DEVIATION = 12         # Max allowed point-to-point deviation
 
 # Target path

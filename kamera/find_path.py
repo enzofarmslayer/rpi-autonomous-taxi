@@ -1,7 +1,7 @@
 from typing import Tuple, Optional
 import numpy as np
 import config
-
+import path_spacing
 
 def compute_lane_center(
     left_boundary: np.ndarray,
@@ -89,3 +89,31 @@ def compute_lane_center(
         return None
 
     return np.array(centers, dtype=np.int32)
+
+
+DIVERGENCE_THRESHOLD = 1.8
+MIN_ABS_DIVERGENCE = 50
+
+def detect_diverging_paths(path_l: np.ndarray, path_r: np.ndarray, roi_shape: Tuple[int, int]) -> bool:
+    h, w = roi_shape
+
+    h_middle = h//2
+    y_coords, widths = path_spacing.widths_on_common_y(path_l, path_r)
+    if y_coords.size == 0: return False
+
+    # Get average spacing in middle 20% of ROI
+    middle_indexes = [i for i, y in enumerate(y_coords) if abs(h_middle-y)/h < 0.1]
+    if len(middle_indexes) == 0: return False
+    avg_width_middle = widths[middle_indexes].mean()
+
+    # Get average spacing at top 10% of detected boundries
+    y_min = np.min(y_coords)
+    top_indexes = [i for i, y in enumerate(y_coords) if abs(y-y_min)/h < 0.1]
+    if len(top_indexes) == 0: return False
+    avg_width_top = widths[top_indexes].mean()
+
+    print("Top:", avg_width_top)
+    print("Middle:", avg_width_middle)
+    return (avg_width_top/avg_width_middle) >= DIVERGENCE_THRESHOLD and avg_width_top > MIN_ABS_DIVERGENCE
+
+
