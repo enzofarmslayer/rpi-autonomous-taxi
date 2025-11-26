@@ -106,7 +106,7 @@ def main():
     _current_dir_index = 0
     _in_intersection = False
     _intersection_count = 0
-    route_complete = False
+    route_complete = True
     on_stopline = False
     time_of_stop = 0.0
     vals = []
@@ -115,13 +115,15 @@ def main():
         while True:
             frame = capture_frame()
 
-            try:
-                vals = recv_uint8_array()
-                if vals:
-                    print("Fick array från C++:", vals)
-                    route_len = len(vals)
-            except BlockingIOError:
-                pass
+            if route_complete:
+                try:
+                    vals = recv_uint8_array()
+                    if vals:
+                        print("Fick array från C++:", vals)
+                        route_len = len(vals)
+                        route_complete = False
+                except BlockingIOError:
+                    pass
             
             dir = Direction.STRAIGHT 
             if vals:
@@ -134,40 +136,41 @@ def main():
             # Run vision processing pipeline
             res = process_frame(frame, dir)
 
-            if not _in_intersection and res.other_path is not None:
-                if _intersection_count > 1:
-                    _in_intersection = True
-                    print("Intersection detected")
-                    _intersection_count = 2
-                else:
-                    _intersection_count += 1
+            if not route_complete:
+                if not _in_intersection and res.other_path is not None:
+                    if _intersection_count > 1:
+                        _in_intersection = True
+                        print("Intersection detected")
+                        _intersection_count = 2
+                    else:
+                        _intersection_count += 1
 
-            if _in_intersection and res.other_path is None:
-                if _intersection_count <= 0:
-                    _in_intersection = False
-                    print("Intersection done")
-                    _current_dir_index += 1
-                    _intersection_count = 0
-                else:
-                    _intersection_count -= 1
-            
-            if res.stop_point:
-                if _current_dir_index >= route_len-1:
-                    send_stop()
-                    print("STOPPPPPPPP I LAGENS NAMN")
-                    print("Route complete")
-                    print(f"Distance to stopline: {res.dist_to_stopline:.2f}")
-                else:
+                if _in_intersection and res.other_path is None:
+                    if _intersection_count <= 0:
+                        _in_intersection = False
+                        print("Intersection done")
+                        _current_dir_index += 1
+                        _intersection_count = 0
+                    else:
+                        _intersection_count -= 1
+                
+                if res.stop_point:
+                    if _current_dir_index >= route_len-1:
+                        send_stop()
+                        print("STOPPPPPPPP I LAGENS NAMN")
+                        print("Route complete")
+                        print(f"Distance to stopline: {res.dist_to_stopline:.2f}")
+                    else:
+                        t = time.time()
+                        if not on_stopline:
+                            time_of_stop = t
+                            on_stopline = True
+                        _current_dir_index += 1
+
+                if on_stopline:
                     t = time.time()
-                    if not on_stopline:
-                        time_of_stop = t
-                        on_stopline = True
-                    _current_dir_index += 1
-
-            if on_stopline:
-                t = time.time()
-                if t-time_of_stop > 2.0:
-                    on_stopline = False
+                    if t-time_of_stop > 2.0:
+                        on_stopline = False
 
             # Send 7-bit heading via Unix datagram socket
             send_heading(res.heading)

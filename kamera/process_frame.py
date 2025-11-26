@@ -96,6 +96,8 @@ def _compute_heading(center_x_fullframe: float) -> float:
 
 
 def _choose_lookahead_point(centers_roi, roi_h):
+    if centers_roi is None or len(centers_roi) == 0:
+        return None
     target_y = (roi_h - 1) * (1.0 - config.LOOKAHEAD_POS)
 
     # Find the centerline point whose y is closest to target_y
@@ -154,7 +156,6 @@ def process_frame(frame, dir: Direction) -> FrameResult:
     
     # 7) Scan for intersection
     diverging_paths = fp.detect_diverging_paths(path_l, path_r, binary.shape)
-    print("Div paths? ", str(diverging_paths))
 
     target_path = None
     other_path = None
