@@ -176,13 +176,17 @@ def main():
             send_heading(res.heading)
 
             # Send JPEG to TCP client (if connected)
+            vis = visualization.build(frame, res)
             if streamer.has_client():
-                vis = visualization.build(frame, res)
                 ok, jpg = cv2.imencode(
                     ".jpg", vis, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY]
                 )
                 if ok:
                     streamer.push_jpeg(jpg.tobytes())
+
+            cv2.imshow("Picam", vis)
+            cv2.waitKey(1)
+        
  
             # FPS print every 2 seconds for debugging
             frame_count += 1
@@ -191,6 +195,7 @@ def main():
                 print(f"FPS: {frame_count / (now - fps_t0):.1f}, heading: {res.heading:.1f}")
                 fps_t0 = now
                 frame_count = 0
+    
 
     except KeyboardInterrupt:
         print("Stopping...")

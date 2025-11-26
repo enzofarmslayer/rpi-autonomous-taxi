@@ -141,8 +141,5 @@ def build(frame: np.ndarray, result: FrameResult) -> np.ndarray:
             cv2.LINE_AA
         )
         cv2.circle(vis, (tx, ty), 6, (0, 70, 240), -1)
-
-
-    # Convert to RGB for Matplotlib
-    final_rgb = cv2.cvtColor(vis, cv2.COLOR_BGR2RGB)
-    return final_rgb
+    
+    return vis
