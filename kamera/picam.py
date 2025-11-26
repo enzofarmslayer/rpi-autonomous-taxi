@@ -109,6 +109,7 @@ def main():
     route_complete = False
     on_stopline = False
     time_of_stop = 0.0
+    vals = []
 
     try:
         while True:
@@ -121,13 +122,14 @@ def main():
                     route_len = len(vals)
             except BlockingIOError:
                 pass
-
-            command = vals[_current_dir_index]
+            
             dir = Direction.STRAIGHT 
-            if command == 86:
-                dir == Direction.LEFT
-            elif command == 72:
-                dir == Direction.RIGHT
+            if vals:
+                command = vals[_current_dir_index]
+                if command == 86:
+                    dir == Direction.LEFT
+                elif command == 72:
+                    dir == Direction.RIGHT
 
             # Run vision processing pipeline
             res = process_frame(frame, dir)
