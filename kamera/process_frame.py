@@ -171,9 +171,12 @@ def process_frame(frame, dir: Direction) -> FrameResult:
             other_path = path_l
 
     # 8) Compute heading based on lookahead point
+    target_point = None
+    heading = 0.0
     target_point_roi = _choose_lookahead_point(target_path, roi.shape[0])
-    target_point = _roi_to_fullframe(target_point_roi, offset)
-    heading = _compute_heading(target_point[0])
+    if target_point_roi:
+        target_point = _roi_to_fullframe(target_point_roi, offset)
+        heading = _compute_heading(target_point[0])
 
     return FrameResult(
         heading=heading,

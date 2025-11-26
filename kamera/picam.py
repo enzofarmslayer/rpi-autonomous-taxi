@@ -46,12 +46,12 @@ def capture_frame():
     # frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     return frame
 
-def quantize_heading_to_7bit(heading_deg: float, min=-25.0, max=25.0) -> int:
+def quantize_heading_to_7bit(heading_deg: float, v_min=-25.0, v_max=25.0) -> int:
     """
     Map heading angle in degrees to a 7-bit integer (0..100).
     """
-    clamped = max(min, min(max, heading_deg))
-    norm = (clamped - min) / (max - min)
+    clamped = max(v_min, min(v_max, heading_deg))
+    norm = (clamped - v_min) / (v_max - v_min)
     return int(round(norm * 127)) & 0x7F  # 0..127
 
 def send_heading(heading_deg: float):
