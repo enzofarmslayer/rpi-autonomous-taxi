@@ -11,5 +11,3 @@ A self-driving model car that acts as a robot taxi on a predefined road network 
 | Steering module | ATmega1284 | `styrmodul/` (C): PWM control of the motor and steering servo, with PID control to keep the car in its lane. |
 | Sensor module | ATmega1284 | `sensormodul/` (C++): ultrasonic distance sensor for obstacle detection and Hall-effect sensors for wheel speed and distance. |
 | Laptop GUI | PC | `TCP/` (Python, Tkinter): telemetry, live camera view, manual driving and PID tuning over TCP. |
-
-The modules exchange binary messages in the format `[START][TYPE][LENGTH][DATA]` over UART and TCP.
