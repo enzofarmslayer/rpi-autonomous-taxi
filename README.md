@@ -2,8 +2,6 @@
 
 A self-driving model car that acts as a robot taxi on a predefined road network with stop lines, intersections and curves. It follows the lane using a camera, stops for obstacles, and can switch between autonomous and manual driving from a laptop over WiFi.
 
-Built by a group of seven students in the course TSEA29 (Konstruktion med mikrodatorer) at Linköping University, autumn 2025.
-
 ## System overview
 
 | Module | Hardware | Code |
